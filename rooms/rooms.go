@@ -1,4 +1,4 @@
-package main
+package rooms
 
 import (
 	"fmt"
@@ -59,6 +59,12 @@ func (r *Room) cmdHandler() {
 			continue
 		}
 	}
+}
+
+func (r *Room) AddConn(conn *websocket.Conn) {
+	r.mu.Lock()
+	r.conns = append(r.conns, conn)
+	r.mu.Unlock()
 }
 
 func (r *Room) onLog(_ *servers.Server, log string) {
