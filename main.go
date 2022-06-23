@@ -22,6 +22,7 @@ var (
 	manager = &Manager{
 		conns: []*websocket.Conn{},
 		mu:    sync.RWMutex{},
+		input: make(chan string, 10),
 	}
 )
 
@@ -31,6 +32,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	go manager.listen()
 
 	server = servers.NewServer(jarPath, "tg6", id)
 	server.OnLog = manager.onLog
@@ -99,12 +101,35 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 type Manager struct {
 	conns []*websocket.Conn
 	mu    sync.RWMutex
+
+	input chan string
+}
+
+func (m *Manager) listen() {
+	for {
+		str := <-m.input
+		if server.State == servers.Running {
+			server.SendCommand(str)
+		}
+
+	}
 }
 
 func (m *Manager) addConn(c *websocket.Conn) {
 	m.mu.Lock()
 	m.conns = append(m.conns, c)
 	m.mu.Unlock()
+	go listen(c, m.input)
+}
+
+func listen(c *websocket.Conn, ch chan string) {
+	for {
+		_, data, err := c.ReadMessage()
+		if err != nil {
+			return
+		}
+		ch <- string(data)
+	}
 }
 
 func (m *Manager) onLog(s *servers.Server, log string) {
