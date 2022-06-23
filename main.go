@@ -136,7 +136,7 @@ func (m *Manager) onLog(s *servers.Server, log string) {
 	cn := []int{}
 	m.mu.RLock()
 	for i := range m.conns {
-		err := m.conns[i].WriteMessage(1, []byte(log))
+		err := m.conns[i].WriteMessage(websocket.TextMessage, []byte(log))
 		if err != nil {
 			fmt.Println(err)
 			cn = append(cn, i)
