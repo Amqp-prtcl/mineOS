@@ -7,14 +7,18 @@ import (
 )
 
 var (
-	Users   []*User
+	Users []*User = []*User{{
+		ID:       snowflakes.NewNode(1).NewID(),
+		Username: "Admin",
+		Password: "Admin",
+	}}
 	usersmu sync.RWMutex
 )
 
 type User struct {
 	ID       snowflakes.ID `json:"id"`
-	username string        `json:"usr"`
-	password string        `json:"pswd"`
+	Username string        `json:"usr"`
+	Password string        `json:"pswd"`
 
 	// TODO: add preferences
 }
@@ -34,7 +38,7 @@ func getUserbyName(usrname string) (*User, bool) {
 	usersmu.RLock()
 	defer usersmu.Unlock()
 	for _, usr := range Users {
-		if usr.username == usrname {
+		if usr.Username == usrname {
 			return usr, true
 		}
 	}

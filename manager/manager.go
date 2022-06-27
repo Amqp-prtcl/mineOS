@@ -23,6 +23,15 @@ type Manager struct {
 	listmu sync.Mutex
 }
 
+func NewManager() *Manager {
+	return &Manager{
+		Rooms:   []*rooms.Room{},
+		roomsmu: sync.RWMutex{},
+		list:    []*websocket.Conn{},
+		listmu:  sync.Mutex{},
+	}
+}
+
 func (m *Manager) LoadRooms(file string) error {
 	if len(m.list) != 0 {
 		//TODO
@@ -86,4 +95,25 @@ func (m *Manager) OnStateChange(srv *servers.Server) {
 		}
 	}
 	m.listmu.Unlock()
+}
+
+func (m *Manager) MarshalServerList() []byte {
+	type a struct {
+		ID    snowflakes.ID       `json:"id"`
+		Name  string              `json:"name"`
+		State servers.ServerState `json:"state"`
+	}
+	m.roomsmu.RLock()
+	var srvs = make([]a, 0, len(m.Rooms))
+
+	for _, r := range m.Rooms {
+		srvs = append(srvs, a{
+			ID:    r.Srv.ID,
+			Name:  r.Srv.Name,
+			State: r.Srv.State,
+		})
+	}
+	m.roomsmu.RUnlock()
+	data, _ := json.Marshal(srvs)
+	return data
 }

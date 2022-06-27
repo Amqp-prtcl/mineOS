@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"mineOS/servers"
+	"mineOS/manager"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -21,7 +20,6 @@ const (
 )
 
 var (
-	server *servers.Server
 	Root   = "/mineos/data/"
 	Assets = Root + "assets/"
 
@@ -30,8 +28,8 @@ var (
 	RoomsFile = Assets + "rooms.html"
 	RoomFile  = Assets + "room.html"
 
-	Secret = "//TODO"
-	Epoch  time.Time //TODO
+	Secret           = "//TODO"
+	Epoch  time.Time = time.UnixMicro(0) //TODO
 )
 
 var upgrader = websocket.Upgrader{
@@ -104,7 +102,7 @@ func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, mat
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	if usr.password != r.PostFormValue("password") {
+	if usr.Password != r.PostFormValue("password") {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -117,21 +115,17 @@ func getRoomsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matc
 }
 
 func listServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
+	w.Write(manager.M.MarshalServerList())
 }
 
 func RoomsSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
-	/*
-		if strings.HasSuffix(path, "/ws") {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		manager.addConn(conn)
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
-	*/
+	}
+	manager.M.AddConn(conn)
 }
 
 func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
@@ -139,15 +133,51 @@ func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, match
 }
 
 func RoomSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	room.AddConn(conn)
 }
 
 func startRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	err = room.Start()
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func stopRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	room.Stop()
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func assetsHandler(w http.ResponseWriter, r *http.Request, entity interface{}, matches []string) {
@@ -156,60 +186,6 @@ func assetsHandler(w http.ResponseWriter, r *http.Request, entity interface{}, m
 		return
 	}
 	http.ServeFile(w, r, filepath.Join(Root, "assets", matches[0]))
-}
-
-func Handler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	path = strings.TrimSuffix(path, "/")
-
-	if r.Method == http.MethodGet && path == "/favicon.ico" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	if r.Method == http.MethodGet && path == "" {
-		http.Redirect(w, r, "/servers", http.StatusPermanentRedirect)
-		return
-	}
-
-	fmt.Println(r.Method)
-	fmt.Println(path)
-
-	if r.Method == http.MethodGet && path == "/servers" {
-		w.Write([]byte("<!DOCTYPE html><html><head><meta charset='utf-8'><title>Servers</title></head><body><ul><a href=/servers/" + server.ID.String() + ">Server: " + server.Name + "</a> state: " + string(server.State) + "</ul></body></html>"))
-		return
-	}
-
-	if r.Method == http.MethodGet && strings.HasSuffix(path, "t.js") {
-		http.ServeFile(w, r, "t.js")
-		return
-	}
-
-	if r.Method == http.MethodPost && strings.HasSuffix(path, "start") {
-		server.Start()
-		return
-	}
-
-	if r.Method == http.MethodPost && strings.HasSuffix(path, "stop") {
-		server.Stop()
-		return
-	}
-
-	if strings.HasSuffix(path, "/ws") {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		manager.addConn(conn)
-		return
-	}
-
-	if r.Method == http.MethodGet && strings.HasPrefix(path, "/servers/") {
-		http.ServeFile(w, r, "t.html")
-		return
-	}
-
-	w.WriteHeader(http.StatusNotFound)
 }
 
 /*
