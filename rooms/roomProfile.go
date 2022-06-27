@@ -14,12 +14,12 @@ type RoomProfile struct {
 	JarPath string        `json:"jarpath"`
 }
 
-func LoadProfiles(file string) ([]RoomProfile, error) {
+func LoadProfiles(file string) ([]*RoomProfile, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
-	var profiles = []RoomProfile{}
+	var profiles = []*RoomProfile{}
 	err = json.NewDecoder(f).Decode(&profiles)
 	f.Close()
 	return profiles, err

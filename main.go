@@ -27,6 +27,8 @@ var (
 
 	LoginFile = Assets + "login.html"
 	HomeFile  = Assets + "home.html"
+	RoomsFile = Assets + "rooms.html"
+	RoomFile  = Assets + "room.html"
 
 	Secret = "//TODO"
 	Epoch  time.Time //TODO
@@ -60,12 +62,14 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?(.*)/?$`, NoAuth, postLoginHandler))
 
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/?$`, Auth, getRoomsHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/ls/?$`, Auth, listServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, RoomsSocketHandler))
+
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(.+)/?$`, Auth, getRoomHandler))
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(.+)/ws/?$`, Auth, RoomSocketHandler))
 
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(.+)/start/?$`, Auth, startRoomHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(.+)/stop/?$`, Auth, stopRoomHandler))
-
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(.+)/ws/?$`, Auth, RoomSocketHandler))
 
 	if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
 		panic(err)
@@ -108,23 +112,41 @@ func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, mat
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func getRoomsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.ServeFile(w, r, RoomsFile)
+}
+
+func listServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
+func RoomsSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+	/*
+		if strings.HasSuffix(path, "/ws") {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		manager.addConn(conn)
+		return
+	*/
+}
+
+func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.ServeFile(w, r, RoomFile)
+}
+
+func RoomSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
 func startRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	//TODO
 }
 
 func stopRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
-}
-
-func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
-}
-
-func getRoomsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//TODO
-}
-
-func RoomSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	//TODO
 }
 

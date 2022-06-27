@@ -14,15 +14,18 @@ type Room struct {
 	conns []*websocket.Conn
 	mu    sync.Mutex
 
+	stateCallback func(*servers.Server)
+
 	cmds chan string
 }
 
-func NewRoom(profile *RoomProfile) *Room {
+func NewRoom(profile *RoomProfile, stateCallback func(*servers.Server)) *Room {
 	r := &Room{
-		Srv:   servers.NewServer(profile.JarPath, profile.Name, profile.ID),
-		conns: []*websocket.Conn{},
-		mu:    sync.Mutex{},
-		cmds:  make(chan string, 1),
+		Srv:           servers.NewServer(profile.JarPath, profile.Name, profile.ID),
+		conns:         []*websocket.Conn{},
+		mu:            sync.Mutex{},
+		stateCallback: stateCallback,
+		cmds:          make(chan string, 1),
 	}
 
 	r.Srv.OnLog = r.onLog
@@ -116,4 +119,7 @@ func (r *Room) onStateChange(_ *servers.Server) {
 		}
 	}
 	r.mu.Unlock()
+	if r.stateCallback != nil {
+		r.stateCallback(r.Srv)
+	}
 }
