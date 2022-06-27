@@ -5,7 +5,6 @@ import (
 	"mineOS/servers"
 	"sync"
 
-	"github.com/Amqp-prtcl/snowflakes"
 	"github.com/gorilla/websocket"
 )
 
@@ -18,9 +17,9 @@ type Room struct {
 	cmds chan string
 }
 
-func NewRoom(jarPath string, name string, id snowflakes.ID) *Room {
+func NewRoom(profile *RoomProfile) *Room {
 	r := &Room{
-		Srv:   servers.NewServer(jarPath, name, id),
+		Srv:   servers.NewServer(profile.JarPath, profile.Name, profile.ID),
 		conns: []*websocket.Conn{},
 		mu:    sync.Mutex{},
 		cmds:  make(chan string, 1),
@@ -65,6 +64,15 @@ func (r *Room) AddConn(conn *websocket.Conn) {
 	r.mu.Lock()
 	r.conns = append(r.conns, conn)
 	r.mu.Unlock()
+	go func(c *websocket.Conn, ch chan string) {
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			ch <- string(data)
+		}
+	}(conn, r.cmds)
 }
 
 func (r *Room) onLog(_ *servers.Server, log string) {

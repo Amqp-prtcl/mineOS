@@ -5,25 +5,31 @@ import (
 	"log"
 	"mineOS/servers"
 	"net/http"
+	"path/filepath"
 	"strings"
-	"sync"
+	"time"
 
+	"github.com/Amqp-prtcl/jwt"
+	"github.com/Amqp-prtcl/routes"
 	"github.com/Amqp-prtcl/snowflakes"
 	"github.com/gorilla/websocket"
 )
 
 const (
-	jarPath               = "C:/Users/Luca/Desktop/test server 1.19/spigot-1.19.jar"
-	id      snowflakes.ID = "1234"
+	NoAuth = iota
+	Auth
 )
 
 var (
-	server  *servers.Server
-	manager = &Manager{
-		conns: []*websocket.Conn{},
-		mu:    sync.RWMutex{},
-		input: make(chan string, 10),
-	}
+	server *servers.Server
+	Root   = "/mineos/data/"
+	Assets = Root + "assets/"
+
+	LoginFile = Assets + "login.html"
+	HomeFile  = Assets + "home.html"
+
+	Secret = "//TODO"
+	Epoch  time.Time //TODO
 )
 
 var upgrader = websocket.Upgrader{
@@ -31,17 +37,103 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024 * 20,
 }
 
+func onAuth(r *http.Request, authType int, token jwt.Token) (*http.Cookie, interface{}, bool) {
+	if authType == NoAuth {
+		return nil, nil, true
+	}
+	token, usr, ok := processToken(token)
+	if !ok {
+		return nil, nil, false
+	}
+	return CookieFromToken(token), usr, true
+}
+
 func main() {
-	go manager.listen()
+	snowflakes.SetEpoch(Epoch)
+	router := routes.NewRouter(onAuth)
 
-	server = servers.NewServer(jarPath, "tg6", id)
-	server.OnLog = manager.onLog
-	server.OnStateChange = manager.onState
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/?$`, Auth, homeHandler))
 
-	http.HandleFunc("/", Handler)
-	if err := http.ListenAndServe("0.0.0.0:8080", nil); err != nil {
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/login/?(.*)/?$`, NoAuth, getLoginHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/assets/(.+)/?$`, Auth, assetsHandler))
+
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?(.*)/?$`, NoAuth, postLoginHandler))
+
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/?$`, Auth, getRoomsHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(.+)/?$`, Auth, getRoomHandler))
+
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(.+)/start/?$`, Auth, startRoomHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(.+)/stop/?$`, Auth, stopRoomHandler))
+
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(.+)/ws/?$`, Auth, RoomSocketHandler))
+
+	if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
 		panic(err)
 	}
+}
+
+/*
+
+GET  http://server.com/servers/
+GET  http://server.com/servers/<id>/
+POST http://server.com/servers/<id>/start/
+POST http://server.com/servers/<id>/stop/
+any  ws://server.com/servers/<id>/ws
+
+Serve files:
+GET http://server.com/assets/...
+
+*/
+
+func homeHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//http.ServeFile(w, r, HomeFile)
+	http.Redirect(w, r, "/servers", http.StatusPermanentRedirect)
+}
+
+func getLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.ServeFile(w, r, LoginFile)
+}
+
+func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	usr, ok := getUserbyName(r.PostFormValue("username"))
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if usr.password != r.PostFormValue("password") {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	http.SetCookie(w, CookieFromToken(NewToken(usr.ID)))
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func startRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
+func stopRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
+func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
+func getRoomsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
+func RoomSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	//TODO
+}
+
+func assetsHandler(w http.ResponseWriter, r *http.Request, entity interface{}, matches []string) {
+	if strings.Contains(matches[0], "..") {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	http.ServeFile(w, r, filepath.Join(Root, "assets", matches[0]))
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -96,87 +188,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNotFound)
-}
-
-type Manager struct {
-	conns []*websocket.Conn
-	mu    sync.RWMutex
-
-	input chan string
-}
-
-func (m *Manager) listen() {
-	for {
-		str := <-m.input
-		if server.State == servers.Running {
-			server.SendCommand(str)
-		}
-
-	}
-}
-
-func (m *Manager) addConn(c *websocket.Conn) {
-	m.mu.Lock()
-	m.conns = append(m.conns, c)
-	m.mu.Unlock()
-	go listen(c, m.input)
-}
-
-func listen(c *websocket.Conn, ch chan string) {
-	for {
-		_, data, err := c.ReadMessage()
-		if err != nil {
-			return
-		}
-		ch <- string(data)
-	}
-}
-
-func (m *Manager) onLog(s *servers.Server, log string) {
-	cn := []int{}
-	m.mu.RLock()
-	for i := range m.conns {
-		err := m.conns[i].WriteMessage(websocket.TextMessage, []byte(log))
-		if err != nil {
-			fmt.Println(err)
-			cn = append(cn, i)
-		}
-	}
-	m.mu.RUnlock()
-
-	if len(cn) != 0 {
-		m.mu.Lock()
-		for i := len(cn) - 1; i >= 0; i-- {
-			m.conns[cn[i]].Close()
-			m.conns[cn[i]] = nil
-			m.conns[cn[i]] = m.conns[len(m.conns)-1]
-			m.conns = m.conns[0 : len(m.conns)-1]
-		}
-		m.mu.Unlock()
-	}
-}
-
-func (m *Manager) onState(s *servers.Server) {
-	cn := []int{}
-	m.mu.RLock()
-	for i := range m.conns {
-		err := m.conns[i].WriteMessage(websocket.TextMessage, []byte("$"+s.State))
-		if err != nil {
-			cn = append(cn, i)
-		}
-	}
-	m.mu.RUnlock()
-
-	if len(cn) != 0 {
-		m.mu.Lock()
-		for i := len(cn) - 1; i >= 0; i-- {
-			m.conns[cn[i]].Close()
-			m.conns[cn[i]] = nil
-			m.conns[cn[i]] = m.conns[len(m.conns)-1]
-			m.conns = m.conns[0 : len(m.conns)-1]
-		}
-		m.mu.Unlock()
-	}
 }
 
 /*

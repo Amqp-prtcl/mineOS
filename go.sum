@@ -1,3 +1,7 @@
+github.com/Amqp-prtcl/jwt v0.0.0-20220323135600-daff92ed18aa h1:B6cjOZTY4wuDck+kKdjfMz1UPHIxwB0ASu1m13MOExs=
+github.com/Amqp-prtcl/jwt v0.0.0-20220323135600-daff92ed18aa/go.mod h1:eCO2mS/TUnOgHmUYFY/xjidyWk6qm+ZmX3BKNw/yYGk=
+github.com/Amqp-prtcl/routes v0.0.0-20220627151752-3e3d9679b7c9 h1:FLk1CKXCDC0Grhz1q3MbU8KBIJ4Ll9lDIx2mZHVRleE=
+github.com/Amqp-prtcl/routes v0.0.0-20220627151752-3e3d9679b7c9/go.mod h1:jEU1uV5R0Wd5NzjhUYaKroaUk08PQ94FIPQGnt+YwZ8=
 github.com/Amqp-prtcl/snowflakes v0.0.0-20220403140733-4aa02aa518c0 h1:Y+ekSCOGbT+Ph1n39QGyh+5ODD2nbjA5GV6RDRjN9qk=
 github.com/Amqp-prtcl/snowflakes v0.0.0-20220403140733-4aa02aa518c0/go.mod h1:IAf7EvNX9XI5mXY1ENbB7agj1bJh2CGxldYMPyxAmAs=
 github.com/gorilla/websocket v1.5.0 h1:PPwGk2jz7EePpoHN/+ClbZu8SPxiqlu12wZP/3sWmnc=
