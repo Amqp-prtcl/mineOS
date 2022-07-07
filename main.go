@@ -1,9 +1,16 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
+	"mineOS/config"
 	"mineOS/manager"
+	"mineOS/tokens"
+	"mineOS/users"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -20,16 +27,18 @@ const (
 )
 
 var (
-	Root   = "/mineos/data/"
-	Assets = Root + "assets/"
+	Root      = "/mineos/data/"
+	Assets    = Root + "assets/"
+	UsersFile = Root + "users.json"
 
 	LoginFile = Assets + "login.html"
 	HomeFile  = Assets + "home.html"
 	RoomsFile = Assets + "rooms.html"
 	RoomFile  = Assets + "room.html"
 
-	Secret           = "//TODO"
-	Epoch  time.Time = time.UnixMicro(0) //TODO
+	Epoch time.Time = time.UnixMicro(0) //TODO
+
+	ServersNode = snowflakes.NewNode(0)
 )
 
 var upgrader = websocket.Upgrader{
@@ -37,19 +46,56 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024 * 20,
 }
 
+func init() {
+	snowflakes.SetEpoch(Epoch)
+	//TODO
+
+	err := config.LoadConfig("/config")
+	if err != nil {
+		fmt.Printf("[ERR] Unable to load config file.\n")
+		panic(err)
+	}
+
+	//protocol:
+	// create directories
+	/*err := os.MkdirAll(Assets, 0664)
+	if err != nil {
+		panic(err)
+	}*/
+	info, err := os.Stat(Assets)
+	if err != nil || info.IsDir() {
+		fmt.Printf("[ERR] Assest directory not found\n")
+		panic(err)
+	}
+
+	// check for users -> if no users create admin and ask to change default password
+	//TODO: load users from file
+
+	// check for java
+	fmt.Printf("checking for java... ")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	err = exec.CommandContext(ctx, "java", "-version").Run()
+	cancel()
+	if err != nil {
+		fmt.Printf("\n[ERR] Java not Found\n")
+		panic(err)
+	}
+	fmt.Printf("java found\n")
+	fmt.Printf("starting app...\n")
+}
+
 func onAuth(r *http.Request, authType int, token jwt.Token) (*http.Cookie, interface{}, bool) {
 	if authType == NoAuth {
 		return nil, nil, true
 	}
-	token, usr, ok := processToken(token)
+	token, usr, ok := tokens.ProcessToken(token)
 	if !ok {
 		return nil, nil, false
 	}
-	return CookieFromToken(token), usr, true
+	return tokens.CookieFromToken(token), usr, true
 }
 
 func main() {
-	snowflakes.SetEpoch(Epoch)
 	router := routes.NewRouter(onAuth)
 
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/?$`, Auth, homeHandler))
@@ -97,7 +143,7 @@ func getLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matc
 }
 
 func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	usr, ok := getUserbyName(r.PostFormValue("username"))
+	usr, ok := users.GetUserbyName(r.PostFormValue("username"))
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -106,7 +152,7 @@ func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, mat
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	http.SetCookie(w, CookieFromToken(NewToken(usr.ID)))
+	http.SetCookie(w, tokens.CookieFromToken(tokens.NewToken(usr.ID)))
 	w.WriteHeader(http.StatusNoContent)
 }
 

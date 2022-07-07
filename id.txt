@@ -1,0 +1,10 @@
+to create server ->
+    minecraft version + server type
+
+server types -> [ vanilla | spigot | paper ]
+
+auto updates -> auto check and update with the press of a button (just need to replace .jar file)
+
+vanilla -> https://launchermeta.mojang.com/mc/game/version_manifest.json
+
+other -> build tools

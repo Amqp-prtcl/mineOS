@@ -1,7 +1,9 @@
-package main
+package tokens
 
 import (
 	"encoding/json"
+	"mineOS/config"
+	"mineOS/users"
 	"net/http"
 	"time"
 
@@ -27,11 +29,11 @@ func isValidStamp(stamp int64) bool {
 	return stamp < getTimestamp()
 }
 
-func processToken(token jwt.Token) (jwt.Token, *User, bool) {
+func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
 	if token == nil {
 		return nil, nil, false
 	}
-	data, ok := token.ValidateToken(Secret)
+	data, ok := token.ValidateToken(config.GetSecret())
 	if !ok {
 		return nil, nil, false
 	}
@@ -43,11 +45,29 @@ func processToken(token jwt.Token) (jwt.Token, *User, bool) {
 	if !isValidStamp(body.stamp) {
 		return nil, nil, false
 	}
-	usr, ok := getUserbyID(body.ID)
+	usr, ok := users.GetUserbyID(body.ID)
 	if !ok {
 		return nil, nil, false
 	}
-	return NewToken(usr.ID), usr, true
+	if body.stamp != usr.LastStamp {
+		return nil, nil, false
+	}
+	token = NewToken(usr.ID)
+	usr.LastStamp = mustExtractStamp(token)
+	return token, usr, true
+}
+
+func mustExtractStamp(token jwt.Token) int64 {
+	data, err := token.GetBody()
+	if err != nil {
+		panic(err)
+	}
+	var body JwtBody
+	err = json.Unmarshal(data, &body)
+	if err != nil {
+		panic(err)
+	}
+	return body.stamp
 }
 
 func NewToken(id snowflakes.ID) jwt.Token {
@@ -55,7 +75,7 @@ func NewToken(id snowflakes.ID) jwt.Token {
 		ID:    id,
 		stamp: getTimestamp() + ExpirationTime.Milliseconds(),
 	})
-	return jwt.NewToken(data, Secret)
+	return jwt.NewToken(data, config.GetSecret())
 }
 
 func CookieFromToken(token jwt.Token) *http.Cookie {

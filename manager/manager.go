@@ -33,7 +33,9 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) LoadRooms(file string) error {
-	if len(m.list) != 0 {
+	m.roomsmu.Lock()
+	defer m.roomsmu.Unlock()
+	if len(m.Rooms) != 0 {
 		//TODO
 		return fmt.Errorf("double loading of rooms")
 	}
@@ -41,7 +43,6 @@ func (m *Manager) LoadRooms(file string) error {
 	if err != nil {
 		return err
 	}
-	m.roomsmu.Lock()
 	for _, p := range profiles {
 		m.Rooms = append(m.Rooms, rooms.NewRoom(p, m.OnStateChange))
 	}
