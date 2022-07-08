@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"mineOS/config"
 	"mineOS/manager"
 	"mineOS/tokens"
 	"mineOS/users"
+	"mineOS/versions"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,10 +33,11 @@ var (
 	Assets    = Root + "assets/"
 	UsersFile = Root + "users.json"
 
-	LoginFile = Assets + "login.html"
-	HomeFile  = Assets + "home.html"
-	RoomsFile = Assets + "rooms.html"
-	RoomFile  = Assets + "room.html"
+	LoginFile   = Assets + "login.html"
+	HomeFile    = Assets + "home.html"
+	RoomsFile   = Assets + "rooms.html"
+	RoomFile    = Assets + "room.html"
+	NewRoomFile = Assets + "newRoom.html"
 
 	Epoch time.Time = time.UnixMicro(0) //TODO
 
@@ -70,10 +73,21 @@ func init() {
 
 	// check for users -> if no users create admin and ask to change default password
 	//TODO: load users from file
+	err = users.LoadUsers("")
+	if err != nil {
+		panic(err)
+	}
+
+	//load servers -> load manager
+	err = manager.M.LoadRooms("")
+	if err != nil {
+		fmt.Printf("[ERR] failed to load servers profile file.\n")
+		panic(err)
+	}
 
 	// check for java
 	fmt.Printf("checking for java... ")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	err = exec.CommandContext(ctx, "java", "-version").Run()
 	cancel()
 	if err != nil {
@@ -108,6 +122,9 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/?$`, Auth, getRoomsHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/ls/?$`, Auth, listServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, RoomsSocketHandler))
+
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/new/?$`, Auth, postNewServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/new/?$`, Auth, getNewServerHandler))
 
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(.+)/?$`, Auth, getRoomHandler))
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(.+)/ws/?$`, Auth, RoomSocketHandler))
@@ -172,6 +189,25 @@ func RoomsSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, m
 		return
 	}
 	manager.M.AddConn(conn)
+}
+
+func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	var body = &struct {
+		Name       string              `json:"name"`
+		ServerType versions.ServerType `json:"server-type"`
+		VersionID  string              `json:"version-id"`
+	}{}
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil || body.ServerType == "" || body.VersionID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	//TODO
+
+}
+
+func getNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.ServeFile(w, r, NewRoomFile)
 }
 
 func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {

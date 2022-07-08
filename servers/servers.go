@@ -35,7 +35,6 @@ var (
 type Server struct {
 	JarPath string
 	ID      snowflakes.ID
-	Name    string
 	State   ServerState
 
 	OnStateChange func(*Server)
@@ -50,11 +49,10 @@ type Server struct {
 	inputs chan string
 }
 
-func NewServer(jarPath string, name string, id snowflakes.ID) *Server {
+func NewServer(jarPath string, id snowflakes.ID) *Server {
 	return &Server{
 		JarPath: jarPath,
 		ID:      id,
-		Name:    name,
 		State:   Closed,
 		inputs:  make(chan string, 10),
 	}

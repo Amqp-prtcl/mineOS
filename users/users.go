@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"fmt"
+	"mineOS/config"
 	"os"
 	"sync"
 
@@ -33,7 +34,11 @@ func newDefaultUser() *User {
 	}
 }
 
+// if file arg is not present, it is fetched from config file
 func LoadUsers(file string) error {
+	if file == "" {
+		file = config.Config.UsersFile
+	}
 	usersmu.Lock()
 	defer usersmu.Unlock()
 	if len(Users) != 0 {
@@ -52,7 +57,7 @@ func LoadUsers(file string) error {
 	}
 
 	if len(Users) == 0 {
-		fmt.Printf("No users found, added new default admin user: {username: Admin, password: Admin}\n")
+		fmt.Printf("No user found, created new default admin user: {username: Admin, password: Admin}\n")
 		Users = append(Users, newDefaultUser())
 	}
 	return nil

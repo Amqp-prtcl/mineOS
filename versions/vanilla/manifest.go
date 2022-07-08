@@ -2,13 +2,10 @@ package vanilla
 
 import (
 	"encoding/json"
+	"mineOS/config"
 	"net/http"
 	"sync"
 	"time"
-)
-
-var (
-	ManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 )
 
 type Manifest struct {
@@ -30,7 +27,11 @@ type Version struct {
 	RTime time.Time `json:"releaseTime"`
 }
 
+// if manifest url is empty LoadVersion will automatically fetch the url from config file
 func LoadVersions(manifestUrl string) (*Manifest, error) {
+	if manifestUrl == "" {
+		manifestUrl = config.Config.VanillaManifestURL
+	}
 	resp, err := http.Get(manifestUrl)
 	if err != nil {
 		return nil, err

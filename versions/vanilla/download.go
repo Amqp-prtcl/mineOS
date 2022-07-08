@@ -21,20 +21,20 @@ type File struct {
 	Url  string `json:"url"`
 }
 
-func (v *Version) DownloadServer(path string) error {
+func (v *Version) DownloadServer(filepath string) error {
 	fmt.Printf("downloading meta json\n")
 	mf, err := getDownloadFileFromVersionUrl(v.URL)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("downloading server jar\n")
-	err = downloadFile(path, mf.Url)
+	err = downloadFile(filepath, mf.Url)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("checking size\n")
-	stat, err := os.Lstat(path)
+	stat, err := os.Lstat(filepath)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (v *Version) DownloadServer(path string) error {
 	}
 
 	fmt.Printf("verifying file checkdum\n")
-	sum, err := Sha1Sum(path)
+	sum, err := Sha1Sum(filepath)
 	if err != nil {
 		return fmt.Errorf("failed to compute file hash")
 	}

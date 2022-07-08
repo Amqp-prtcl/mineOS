@@ -9,10 +9,10 @@ import (
 )
 
 type Room struct {
-	Srv *servers.Server
-
-	conns []*websocket.Conn
-	mu    sync.Mutex
+	Srv     *servers.Server
+	Profile *RoomProfile
+	conns   []*websocket.Conn
+	mu      sync.Mutex
 
 	stateCallback func(*servers.Server)
 
@@ -21,7 +21,8 @@ type Room struct {
 
 func NewRoom(profile *RoomProfile, stateCallback func(*servers.Server)) *Room {
 	r := &Room{
-		Srv:           servers.NewServer(profile.JarPath, profile.Name, profile.ID),
+		Srv:           servers.NewServer(profile.JarPath, profile.ID),
+		Profile:       profile,
 		conns:         []*websocket.Conn{},
 		mu:            sync.Mutex{},
 		stateCallback: stateCallback,

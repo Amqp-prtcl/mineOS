@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mineOS/rooms"
 	"mineOS/servers"
+	"mineOS/versions"
 	"sync"
 
 	"github.com/Amqp-prtcl/snowflakes"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	M Manager
+	M = NewManager()
 )
 
 type Manager struct {
@@ -32,6 +33,7 @@ func NewManager() *Manager {
 	}
 }
 
+// if file arg is empty, it is fetched from config file
 func (m *Manager) LoadRooms(file string) error {
 	m.roomsmu.Lock()
 	defer m.roomsmu.Unlock()
@@ -100,18 +102,22 @@ func (m *Manager) OnStateChange(srv *servers.Server) {
 
 func (m *Manager) MarshalServerList() []byte {
 	type a struct {
-		ID    snowflakes.ID       `json:"id"`
-		Name  string              `json:"name"`
-		State servers.ServerState `json:"state"`
+		ID         snowflakes.ID       `json:"id"`
+		Name       string              `json:"name"`
+		ServerType versions.ServerType `json:"server-type"`
+		VersionID  string              `json:"version-id"`
+		State      servers.ServerState `json:"state"`
 	}
 	m.roomsmu.RLock()
 	var srvs = make([]a, 0, len(m.Rooms))
 
 	for _, r := range m.Rooms {
 		srvs = append(srvs, a{
-			ID:    r.Srv.ID,
-			Name:  r.Srv.Name,
-			State: r.Srv.State,
+			ID:         r.Srv.ID,
+			Name:       r.Profile.Name,
+			ServerType: r.Profile.Type,
+			VersionID:  r.Profile.VersionID,
+			State:      r.Srv.State,
 		})
 	}
 	m.roomsmu.RUnlock()
