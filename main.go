@@ -7,6 +7,7 @@ import (
 	"log"
 	"mineOS/config"
 	"mineOS/manager"
+	"mineOS/rooms"
 	"mineOS/tokens"
 	"mineOS/users"
 	"mineOS/versions"
@@ -40,8 +41,6 @@ var (
 	NewRoomFile = Assets + "newRoom.html"
 
 	Epoch time.Time = time.UnixMicro(0) //TODO
-
-	ServersNode = snowflakes.NewNode(0)
 )
 
 var upgrader = websocket.Upgrader{
@@ -95,6 +94,15 @@ func init() {
 		panic(err)
 	}
 	fmt.Printf("java found\n")
+
+	//fetching minecraft vanilla versions
+	fmt.Printf("fetching minecraft versions...\n")
+	err = versions.Setup()
+	if err != nil {
+		fmt.Printf("failed to fetch vanilla versions...\n")
+		panic(err)
+	}
+
 	fmt.Printf("starting app...\n")
 }
 
@@ -203,6 +211,13 @@ func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{},
 		return
 	}
 	//TODO
+
+	profile, err := rooms.GenerateRoom(body.Name, body.ServerType, body.VersionID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	manager.M.NewRoom(profile)
 
 }
 

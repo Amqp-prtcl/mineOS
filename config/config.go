@@ -14,6 +14,7 @@ var ( //defaults
 		UsersFile:           "",
 		ServerProfilesFile:  "",
 		VanillaManifestURL:  "",
+		PaperMcManifestURL:  "",
 	}
 
 	secret = "//TODO"
@@ -30,6 +31,7 @@ type config struct {
 	ServerProfilesFile string
 
 	VanillaManifestURL string
+	PaperMcManifestURL string
 }
 
 func LoadConfig(path string) error {

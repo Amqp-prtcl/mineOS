@@ -100,6 +100,18 @@ func (m *Manager) OnStateChange(srv *servers.Server) {
 	m.listmu.Unlock()
 }
 
+func (m *Manager) NewRoom(prof *rooms.RoomProfile) bool {
+	m.roomsmu.Lock()
+	defer m.roomsmu.Unlock()
+	for _, rm := range m.Rooms {
+		if rm.Profile.ID == prof.ID || rm.Profile.Name == prof.Name {
+			return false
+		}
+	}
+	m.Rooms = append(m.Rooms, rooms.NewRoom(prof, m.OnStateChange))
+	return true
+}
+
 func (m *Manager) MarshalServerList() []byte {
 	type a struct {
 		ID         snowflakes.ID       `json:"id"`
