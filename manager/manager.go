@@ -38,7 +38,7 @@ func (m *Manager) LoadRooms(file string) error {
 	m.roomsmu.Lock()
 	defer m.roomsmu.Unlock()
 	if len(m.Rooms) != 0 {
-		//TODO
+		//TODO: close all servers, and then reload
 		return fmt.Errorf("double loading of rooms")
 	}
 	profiles, err := rooms.LoadProfiles(file)
@@ -104,7 +104,7 @@ func (m *Manager) NewRoom(prof *rooms.RoomProfile) bool {
 	m.roomsmu.Lock()
 	defer m.roomsmu.Unlock()
 	for _, rm := range m.Rooms {
-		if rm.Profile.ID == prof.ID || rm.Profile.Name == prof.Name {
+		if rm.Profile.ID == prof.ID /*|| rm.Profile.Name == prof.Name*/ {
 			return false
 		}
 	}

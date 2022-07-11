@@ -1,9 +1,10 @@
-package config //TODO
+package config
 
 import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"time"
 )
 
 var ( //defaults
@@ -13,8 +14,8 @@ var ( //defaults
 		VersionsCacheFolder: "",
 		UsersFile:           "",
 		ServerProfilesFile:  "",
-		VanillaManifestURL:  "",
-		PaperMcManifestURL:  "",
+		BuildToolsFolder:    "",
+		Epoch:               time.Unix(0, 0),
 	}
 
 	secret = "//TODO"
@@ -23,15 +24,16 @@ var ( //defaults
 )
 
 type config struct {
-	AssetsFolder        string
-	ServersFolder       string
-	VersionsCacheFolder string
+	AssetsFolder        string `json:"assets-folder"`
+	ServersFolder       string `json:"servers-folder"`
+	VersionsCacheFolder string `json:"versions-cache-folder"`
 
-	UsersFile          string
-	ServerProfilesFile string
+	Epoch time.Time `json:"epoch"`
 
-	VanillaManifestURL string
-	PaperMcManifestURL string
+	UsersFile          string `json:"users-file"`
+	ServerProfilesFile string `json:"server-profiles-file"`
+
+	BuildToolsFolder string `json:"build-tools-folder"`
 }
 
 func LoadConfig(path string) error {

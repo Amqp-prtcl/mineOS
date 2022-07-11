@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"fmt"
+	"mineOS/emails"
 	"mineOS/servers"
 	"sync"
 
@@ -123,4 +124,28 @@ func (r *Room) onStateChange(_ *servers.Server) {
 	if r.stateCallback != nil {
 		r.stateCallback(r.Srv)
 	}
+	switch r.Srv.State {
+	case servers.Running:
+		err := r.sendRunningEmail()
+		if err != nil {
+			fmt.Printf("Error sending running email(s): %v", err)
+		}
+	case servers.Closed:
+		err := r.sendCloseMail()
+		if err != nil {
+			fmt.Printf("Error sending closing email(s): %v", err)
+		}
+	}
+}
+
+func (r *Room) sendRunningEmail() error {
+	var subject = fmt.Sprintf("MineOS: Server %s (id: %s) Running.", r.Profile.Name, r.Profile.ID.String())
+	var body = fmt.Sprintf("Server %s (id: %s) is now running if this is unintentional or unexpected please log in in order to resolve possible issue.", r.Profile.Name, r.Profile.ID.String())
+	return emails.SendEmail(r.Profile.Emails, subject, body)
+}
+
+func (r *Room) sendCloseMail() error {
+	var subject = fmt.Sprintf("MineOS: Server %s (id: %s) Closed.", r.Profile.Name, r.Profile.ID.String())
+	var body = fmt.Sprintf("Server %s (id: %s) has closed if this is unintentional or unexpected please log in in order to resolve possible issue.", r.Profile.Name, r.Profile.ID.String())
+	return emails.SendEmail(r.Profile.Emails, subject, body)
 }

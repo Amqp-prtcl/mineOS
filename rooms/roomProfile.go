@@ -73,7 +73,7 @@ func GenerateRoom(name string, serverType versions.ServerType, versionID string)
 	}
 
 	// 3. agree to eula by running jar once and editing 'eula.txt'
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	cmd := exec.CommandContext(ctx, "java", "-jar", profile.JarPath, "nogui")
 	cmd.Dir = serverDir
 	err = cmd.Run()

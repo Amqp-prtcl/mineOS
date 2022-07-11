@@ -86,7 +86,7 @@ func (s *Server) Start() error {
 
 	s.cmd.Stderr = os.Stderr
 
-	go listenLines(s.output, s.logs)
+	go s.listenServer()
 	err = s.cmd.Start()
 	if err != nil {
 		return err
@@ -147,8 +147,8 @@ func (s *Server) processHandler() {
 	}
 }
 
-func listenLines(rd io.Reader, c chan string) {
-	r := bufio.NewReader(rd)
+func (s *Server) listenServer() {
+	r := bufio.NewReader(s.output)
 	var str string
 	var err error
 	for {
@@ -156,6 +156,6 @@ func listenLines(rd io.Reader, c chan string) {
 		if err != nil { // should be only EOF
 			return
 		}
-		c <- str
+		s.logs <- str
 	}
 }

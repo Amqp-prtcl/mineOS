@@ -94,6 +94,7 @@ func init() {
 		panic(err)
 	}
 	fmt.Printf("java found\n")
+	//TODO: check git version
 
 	//fetching minecraft vanilla versions
 	fmt.Printf("fetching minecraft versions...\n")
@@ -204,6 +205,7 @@ func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{},
 		Name       string              `json:"name"`
 		ServerType versions.ServerType `json:"server-type"`
 		VersionID  string              `json:"version-id"`
+		Emails     []string            `jdon:"emails"`
 	}{}
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil || body.ServerType == "" || body.VersionID == "" {
@@ -217,8 +219,13 @@ func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{},
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	manager.M.NewRoom(profile)
-
+	profile.Emails = body.Emails
+	ok := manager.M.NewRoom(profile)
+	if !ok { // should never trigger since a new token is guaranteed to be unique
+		fmt.Printf("??? failed to add new room to roomManager: ID already existing ???")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func getNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {

@@ -1,6 +1,7 @@
 package versions
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
@@ -12,7 +13,7 @@ import (
 //
 // if hash func is nil DownloadFile will not verify it
 func DownloadFile(path string, url string, size int64, sum string, hash func() hash.Hash) error {
-	err := downloadFile(path, url)
+	err := unsafeDownloadFile(path, url)
 	if err != nil {
 		return err
 	}
@@ -43,7 +44,7 @@ func DownloadFile(path string, url string, size int64, sum string, hash func() h
 	return nil
 }
 
-func downloadFile(path string, url string) error {
+func unsafeDownloadFile(path string, url string) error {
 	// Create the file
 	out, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0777)
 	if err != nil {
@@ -77,4 +78,15 @@ func GetSum(path string, hash func() hash.Hash) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// e must be a pointer
+func retreiveStructFromUrl(url string, e interface{}) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	err = json.NewDecoder(resp.Body).Decode(e)
+	resp.Body.Close()
+	return err
 }
