@@ -30,6 +30,7 @@ var (
 	RunningReg = regexp.MustCompile(`\[.+:.+:.+\] \[Server thread\/INFO\]: Done \(.*\)! For help, type "help"`)
 
 	ErrAlreadyStarted = fmt.Errorf("Server already started")
+	ErrNotStarted     = fmt.Errorf("Server not started")
 )
 
 type Server struct {
@@ -101,15 +102,19 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server) SendCommand(cmd string) {
+func (s *Server) SendCommand(cmd string) error {
+	if s.State != Starting && s.State != Running {
+		return ErrNotStarted
+	}
 	if !strings.HasSuffix(cmd, "\n") {
 		cmd += "\n"
 	}
 	s.inputs <- cmd
+	return nil
 }
 
-func (s *Server) Stop() {
-	s.SendCommand("stop")
+func (s *Server) Stop() error {
+	return s.SendCommand("stop")
 }
 
 func (s *Server) processHandler() {

@@ -44,8 +44,8 @@ func (r *Room) Start() error {
 	return nil
 }
 
-func (r *Room) Stop() {
-	r.Srv.Stop()
+func (r *Room) Stop() error {
+	return r.Srv.Stop()
 }
 
 func (r *Room) SendCommand(cmd string) {

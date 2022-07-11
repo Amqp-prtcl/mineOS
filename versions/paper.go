@@ -66,8 +66,6 @@ func (m *paperManifest) GetVersion(vrsID string) (Version, bool) {
 }
 
 func (v paperVersion) DownloadServer(path string) error {
-	//TODO
-
 	// get list of builds
 	var builds = struct {
 		Builds []int `json:"builds"`

@@ -52,11 +52,12 @@ func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
 	if body.stamp != usr.LastStamp {
 		return nil, nil, false
 	}
-	token = NewToken(usr.ID)
-	usr.LastStamp = mustExtractStamp(token)
+	token = NewToken(usr)
+	// usr.LastStamp = mustExtractStamp(token) already done in NewToken
 	return token, usr, true
 }
 
+/*
 func mustExtractStamp(token jwt.Token) int64 {
 	data, err := token.GetBody()
 	if err != nil {
@@ -69,11 +70,13 @@ func mustExtractStamp(token jwt.Token) int64 {
 	}
 	return body.stamp
 }
+*/
 
-func NewToken(id snowflakes.ID) jwt.Token {
+func NewToken(usr *users.User) jwt.Token {
+	usr.LastStamp = getTimestamp() + ExpirationTime.Milliseconds()
 	data, _ := json.Marshal(&JwtBody{
-		ID:    id,
-		stamp: getTimestamp() + ExpirationTime.Milliseconds(),
+		ID:    usr.ID,
+		stamp: usr.LastStamp,
 	})
 	return jwt.NewToken(data, config.GetSecret())
 }

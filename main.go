@@ -39,8 +39,6 @@ var (
 	RoomsFile   = Assets + "rooms.html"
 	RoomFile    = Assets + "room.html"
 	NewRoomFile = Assets + "newRoom.html"
-
-	Epoch time.Time = time.UnixMicro(0) //TODO
 )
 
 var upgrader = websocket.Upgrader{
@@ -49,7 +47,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func init() {
-	snowflakes.SetEpoch(Epoch)
 	//TODO
 
 	err := config.LoadConfig("/config")
@@ -57,6 +54,7 @@ func init() {
 		fmt.Printf("[ERR] Unable to load config file.\n")
 		panic(err)
 	}
+	snowflakes.SetEpoch(config.Config.Epoch)
 
 	//protocol:
 	// create directories
@@ -71,7 +69,6 @@ func init() {
 	}
 
 	// check for users -> if no users create admin and ask to change default password
-	//TODO: load users from file
 	err = users.LoadUsers("")
 	if err != nil {
 		panic(err)
@@ -94,7 +91,6 @@ func init() {
 		panic(err)
 	}
 	fmt.Printf("java found\n")
-	//TODO: check git version
 
 	//fetching minecraft vanilla versions
 	fmt.Printf("fetching minecraft versions...\n")
@@ -178,7 +174,7 @@ func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, mat
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	http.SetCookie(w, tokens.CookieFromToken(tokens.NewToken(usr.ID)))
+	http.SetCookie(w, tokens.CookieFromToken(tokens.NewToken(usr)))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -212,7 +208,6 @@ func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{},
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//TODO
 
 	profile, err := rooms.GenerateRoom(body.Name, body.ServerType, body.VersionID)
 	if err != nil {

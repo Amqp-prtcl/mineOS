@@ -1,20 +1,4 @@
-to create server ->
-    minecraft version + server type
-
-server types -> [ vanilla | spigot | paper ]
-
-auto updates -> auto check and update with the press of a button (just need to replace .jar file)
-
-vanilla -> https://launchermeta.mojang.com/mc/game/version_manifest.json
+TODO: auto updates -> auto check and update with the press of a button (just need to replace .jar file)
 
 other -> curl "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar" -o BuildTools.jar
  -> java -jar BuildTools.jar
-
-
-
-
-
- /api/versions/
- /api/versions/{srvtype}/
- /api/
- /api/servers/addEmail/ (and remove)

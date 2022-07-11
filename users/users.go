@@ -22,8 +22,6 @@ type User struct {
 	Password string        `json:"pswd"`
 
 	LastStamp int64 `json:"-"`
-
-	// TODO: add preferences
 }
 
 func newDefaultUser() *User {
