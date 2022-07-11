@@ -1,7 +1,20 @@
 # SITE:
 
+### **POST** `/login`
+> returns auth jwt cookie in exchange of valid credentials
+
+example:
+```
+username=myUsername&password=MySecretPassword
+```
+
+NOTE: Notice that at least for now the password is sent in plain text and MineOs does not uses https so a password unique for MineOs is recommended as any proxy or man-in-the-middle attack will be able to access it
+
+### **ANY** `/logout`
+> overwrites auth jwt cookie
+
 ### **GET**  `/`
-> redirects to `/servers`
+>  redirects to `/servers`
 
 ### **GET**  `/home`
 > redirects to `/servers`
