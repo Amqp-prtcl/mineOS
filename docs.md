@@ -1,5 +1,8 @@
 # SITE:
 
+### **GET** `/login`
+> serves login html page
+
 ### **POST** `/login`
 > returns auth jwt cookie in exchange of valid credentials
 
@@ -14,13 +17,13 @@ NOTE: Notice that at least for now the password is sent in plain text and MineOs
 > overwrites auth jwt cookie
 
 ### **GET**  `/`
->  redirects to `/servers`
+>  redirects to `/home`
 
 ### **GET**  `/home`
-> redirects to `/servers`
+> serves home html page
 
 ### **GET**  `/servers`
-> servers html page
+> serves servers html page
 
 ### **GET**  `/servers/{serverID}`
 > server dashboard (html) page
@@ -34,7 +37,35 @@ NOTE: Notice that at least for now the password is sent in plain text and MineOs
 ### **GET** `/assets/{path-to-file}`
 > returns content of file (if it exists)
 
+<br>
+
 # API:
+
+## Types:
+
+> all endpoints either send or receive valid json values and require to be authenticated.
+
+### Common types:
+- `ID`:
+> IDs are string encoded snowflakes (int64)
+
+- `srvType`:
+> srvTypes are a string representing a different minecraft version type (ex: "VANILLA"; "PAPER"); you can get a list of all available types at endpoint `GET /api/versions`
+
+- `versionID`:
+> versionIDs are a string representing a minecraft version (ex: "1.8.8"; "1.19"); they are usually coupled with srvTypes to represent a server's minecraft characteristics
+
+## General:
+
+### **GET** `/api/epoch`
+> return internal epoch used for id generation and interpretation
+
+example:
+```
+{
+    "epoch": "2022-07-14T09:52:24.06398+02:00"
+}
+```
 
 ## Versions: 
 
@@ -44,8 +75,8 @@ NOTE: Notice that at least for now the password is sent in plain text and MineOs
 example:
 ```
 [
-    "vanilla",
-    "paper"
+    "VANILLA",
+    "PAPER"
 ]
 ```
 
@@ -79,7 +110,7 @@ example:
         "state": "RUNNING"
     },
     {
-        "id": "6952360055545620384",
+        "id": "6952705593643630592",
         "name": "Example #2",
         "server-type": "PAPER",
         "version-id": "1.8.8",
@@ -94,7 +125,7 @@ example:
 example:
 ```
 {
-    "id": "6952360055534518272",
+    "id": "6952705687906418688",
     "name": "Example #1",
     "emails": [
         "fist.example@mail.com",
@@ -118,9 +149,9 @@ example:
 ```
 
 ### **POST** `/api/servers/new` 
-> TODO: create a new server not ready
+> creates a new server. Name field must not be empty and it is recommended that it is unique in order to avoid some confusion.
 
-exemple:
+example:
 ```
 {
     "name": "New Server", 
@@ -132,11 +163,77 @@ exemple:
     "version-id": "1.18"
 }
 ```
+if success, returns:
+```
+{
+    "id":"6953766549635203072"
+}
+```
+
+<br>
 
 # WEBSOCKETS
 
+## Events structure:
+| field id | value type |
+| - | - |
+| event | event Type (String) |
+| data | json encoded data of that event type (string) |
+
+example: 
+```
+{
+    "event": "state-update",
+    "data": "{\"server-id\": \"6952705532792668160\",
+    \"state\": "CLOSED\"}"
+}
+```
+
+### Event Types:
+- `state-update`:
+
+example:
+```
+{
+    "server-id": "6952705532792668160",
+    "state": "CLOSED"
+}
+```
+
+- `log-update`:
+
+example:
+```
+{
+    "server-id": "6953253318667796480",
+    "log": "[16:18:48] [Server thread/INFO]: Starting minecraft server version 1.19"
+}
+```
+- `cmd-input`:
+
+example:
+```
+{
+    "server-id": "6953256559354839040"
+    "command": "list"
+}
+```
+
 ### **ANY**  `/servers/ws`
+
 > opens a websocket connection to server for servers state changes events
+
+this connection will only send `state-update` events and should not be written to.
 
 ### **ANY**  `/servers/{serverID}/ws`
 > opens a websocket connection to server for state changes and minecraft console log events
+
+this connection will send `state-update` and `log-update` and can only receive `cmd-input` json objects (if IDs do not match, the event is discarded)
+
+<br>
+
+# TODO LIST
+- [ ] sanitize upon profile generation error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
+- [ ] option to zip and download backup
+- [ ] auto updates -> auto check and update with the press of a button (just need to replace .jar file)
+- [ ] add Bukkit and Spigot support (buildTools.jar) 

@@ -1,4 +1,4 @@
 TODO: auto updates -> auto check and update with the press of a button (just need to replace .jar file)
-
+TODO: option to zip and download backup
 other -> curl "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar" -o BuildTools.jar
  -> java -jar BuildTools.jar

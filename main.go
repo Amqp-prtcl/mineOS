@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"mineOS/config"
+	"mineOS/emails"
 	"mineOS/manager"
 	"mineOS/rooms"
 	"mineOS/tokens"
@@ -115,49 +116,40 @@ func onAuth(r *http.Request, authType int, token jwt.Token) (*http.Cookie, inter
 }
 
 func main() {
+	const idRegex = `[0-9]+`
 	router := routes.NewRouter(onAuth)
 
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/?$`, Auth, homeHandler))
+	//SITE
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/login/?`, NoAuth, getLoginHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?`, NoAuth, postLoginHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/logout/?`, NoAuth, logoutHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/`, Auth, redirectHomeHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/home/?`, Auth, getHomeHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/servers/?`, Auth, getServersHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/servers/(`+idRegex+`)/?`, Auth, getServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/servers/(`+idRegex+`)/start/?`, Auth, startServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/servers/(`+idRegex+`)/stop/?`, Auth, stopServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/assets/(.+)/?`, Auth, assetsHandler))
 
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/login/?(.*)/?$`, NoAuth, getLoginHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/assets/(.+)/?$`, Auth, assetsHandler))
+	//API
+	//general
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/epoch/?`, Auth, getEpochHandler))
+	//versions
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/versions/?`, Auth, getsrvTypeListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/versions/([A-Z]+)/?`, Auth, getVersionIdListHandler))
+	//servers
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/servers/?`, Auth, getServerListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/servers/(`+idRegex+`)/?`, Auth, getServerInfoHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/api/servers/(`+idRegex+`)/emails/?`, Auth, postServerEmailHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/api/servers/new/?`, Auth, postNewServerHandler))
 
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?(.*)/?$`, NoAuth, postLoginHandler))
-
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/?$`, Auth, getRoomsHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/ls/?$`, Auth, listServerHandler))
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, RoomsSocketHandler))
-
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/new/?$`, Auth, postNewServerHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/new/?$`, Auth, getNewServerHandler))
-
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(.+)/?$`, Auth, getRoomHandler))
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(.+)/ws/?$`, Auth, RoomSocketHandler))
-
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(.+)/start/?$`, Auth, startRoomHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(.+)/stop/?$`, Auth, stopRoomHandler))
+	//WEBSOCKETS
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `/servers/ws/?`, Auth, serverListWebsocketHandler))
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `/servers/(`+idRegex+`)/ws/?`, Auth, serverWebsocketHandler))
 
 	if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
 		panic(err)
 	}
-}
-
-/*
-
-GET  http://server.com/servers/
-GET  http://server.com/servers/<id>/
-POST http://server.com/servers/<id>/start/
-POST http://server.com/servers/<id>/stop/
-any  ws://server.com/servers/<id>/ws
-
-Serve files:
-GET http://server.com/assets/...
-
-*/
-
-func homeHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	//http.ServeFile(w, r, HomeFile)
-	http.Redirect(w, r, "/servers", http.StatusPermanentRedirect)
 }
 
 func getLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
@@ -178,78 +170,28 @@ func postLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, mat
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func getRoomsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+func logoutHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.SetCookie(w, tokens.CookieFromToken(nil))
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func redirectHomeHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.Redirect(w, r, `/servers`, http.StatusPermanentRedirect)
+}
+
+func getHomeHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	http.ServeFile(w, r, HomeFile)
+}
+
+func getServersHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	http.ServeFile(w, r, RoomsFile)
 }
 
-func listServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	w.Write(manager.M.MarshalServerList())
-}
-
-func RoomsSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	manager.M.AddConn(conn)
-}
-
-func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	var body = &struct {
-		Name       string              `json:"name"`
-		ServerType versions.ServerType `json:"server-type"`
-		VersionID  string              `json:"version-id"`
-		Emails     []string            `jdon:"emails"`
-	}{}
-	err := json.NewDecoder(r.Body).Decode(&body)
-	if err != nil || body.ServerType == "" || body.VersionID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	profile, err := rooms.GenerateRoom(body.Name, body.ServerType, body.VersionID)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	profile.Emails = body.Emails
-	ok := manager.M.NewRoom(profile)
-	if !ok { // should never trigger since a new token is guaranteed to be unique
-		fmt.Printf("??? failed to add new room to roomManager: ID already existing ???")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func getNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	http.ServeFile(w, r, NewRoomFile)
-}
-
-func getRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+func getServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	http.ServeFile(w, r, RoomFile)
 }
 
-func RoomSocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
-	id, err := snowflakes.ParseID(matches[0])
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-	room, ok := manager.M.GetRoombyID(id)
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-	}
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	room.AddConn(conn)
-}
-
-func startRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+func startServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	id, err := snowflakes.ParseID(matches[0])
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -266,7 +208,7 @@ func startRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, mat
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func stopRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+func stopServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	id, err := snowflakes.ParseID(matches[0])
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -275,34 +217,155 @@ func stopRoomHandler(w http.ResponseWriter, r *http.Request, e interface{}, matc
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 	}
-	room.Stop()
+	err = room.Stop()
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func assetsHandler(w http.ResponseWriter, r *http.Request, entity interface{}, matches []string) {
+func assetsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	if strings.Contains(matches[0], "..") {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	http.ServeFile(w, r, filepath.Join(Root, "assets", matches[0]))
+	http.ServeFile(w, r, filepath.Join(Assets, matches[0]))
 }
 
-/*
+// API
 
-GET www.srv.com/servers/ -> lists all server available
+func getEpochHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	json.NewEncoder(w).Encode(struct {
+		Epoch time.Time `json:"epoch"`
+	}{Epoch: snowflakes.GetEpoch()})
+}
 
-POST www.srv.com/servers/<id>/start
-POST www.srv.com/servers/<id>/stop
-GET  www.srv.com/servers/<id>/ (websocket connection to logs and commands)
+func getsrvTypeListHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	json.NewEncoder(w).Encode(versions.GetServerTypes())
+}
 
+func getVersionIdListHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	vrs, ok := versions.GetVersionIdsBuServerType(versions.ServerType(matches[0]))
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(vrs)
+}
 
+func getServerListHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	w.Write(manager.M.MarshalServerList())
+}
 
-si ya un crash -> email (avec boutton pour restart)
+func getServerInfoHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	w.Write(room.MarshalRoomInfo())
+}
 
-interface web + command line pour acces au terminal + options pour restart stop and start server
+func postServerEmailHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 
-add auto build latest version of build tools
+	var remails = []string{}
+	err = json.NewDecoder(r.Body).Decode(&remails)
+	r.Body.Close()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if len(remails) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	var mails = make([]string, len(remails))
+	for _, email := range remails {
+		mails = append(mails, strings.ToLower(strings.TrimSpace(email)))
+	}
+	if !emails.AreValidEmails(mails) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-opotion to zip and download backup
+	room.AddEmail(mails...)
+}
 
-*/
+func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	var info = struct {
+		Name    string              `json:"name"`
+		Emails  []string            `json:"emails"`
+		SrvType versions.ServerType `json:"server-type"`
+		VrsID   string              `json:"version-id"`
+	}{}
+	err := json.NewDecoder(r.Body).Decode(&info)
+	r.Body.Close()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if info.Name == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	prof, err := rooms.GenerateRoom(info.Name, info.SrvType, info.VrsID) // TODO: sanitize upon error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	ok := manager.M.NewRoom(prof)
+	if !ok {
+		w.WriteHeader(http.StatusConflict)
+		fmt.Printf("??? failed to add new room to roomManager: ID already exist ???")
+		return
+	}
+	json.NewEncoder(w).Encode(struct {
+		ID snowflakes.ID `json:"id"`
+	}{ID: prof.ID})
+}
+
+func serverListWebsocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("failed to upgrade connection: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	manager.M.AddConn(conn)
+}
+
+func serverWebsocketHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	room.AddConn(conn)
+}

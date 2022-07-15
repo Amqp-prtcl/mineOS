@@ -57,7 +57,7 @@ func (m *Manager) GetRoombyID(id snowflakes.ID) (*rooms.Room, bool) {
 	defer m.roomsmu.RUnlock()
 
 	for _, room := range m.Rooms {
-		if room.Srv.ID == id {
+		if room.Profile.ID == id {
 			return room, true
 		}
 	}
@@ -125,7 +125,7 @@ func (m *Manager) MarshalServerList() []byte {
 
 	for _, r := range m.Rooms {
 		srvs = append(srvs, a{
-			ID:         r.Srv.ID,
+			ID:         r.Profile.ID,
 			Name:       r.Profile.Name,
 			ServerType: r.Profile.Type,
 			VersionID:  r.Profile.VersionID,

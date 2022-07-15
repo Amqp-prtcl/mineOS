@@ -1,11 +1,14 @@
 package rooms
 
 import (
+	"encoding/json"
 	"fmt"
 	"mineOS/emails"
 	"mineOS/servers"
+	"mineOS/versions"
 	"sync"
 
+	"github.com/Amqp-prtcl/snowflakes"
 	"github.com/gorilla/websocket"
 )
 
@@ -14,6 +17,7 @@ type Room struct {
 	Profile *RoomProfile
 	conns   []*websocket.Conn
 	mu      sync.Mutex
+	mailmu  sync.RWMutex
 
 	stateCallback func(*servers.Server)
 
@@ -26,6 +30,7 @@ func NewRoom(profile *RoomProfile, stateCallback func(*servers.Server)) *Room {
 		Profile:       profile,
 		conns:         []*websocket.Conn{},
 		mu:            sync.Mutex{},
+		mailmu:        sync.RWMutex{},
 		stateCallback: stateCallback,
 		cmds:          make(chan string, 1),
 	}
@@ -141,11 +146,62 @@ func (r *Room) onStateChange(_ *servers.Server) {
 func (r *Room) sendRunningEmail() error {
 	var subject = fmt.Sprintf("MineOS: Server %s (id: %s) Running.", r.Profile.Name, r.Profile.ID.String())
 	var body = fmt.Sprintf("Server %s (id: %s) is now running if this is unintentional or unexpected please log in in order to resolve possible issue.", r.Profile.Name, r.Profile.ID.String())
+	r.mailmu.RLock()
+	defer r.mailmu.RUnlock()
 	return emails.SendEmail(r.Profile.Emails, subject, body)
 }
 
 func (r *Room) sendCloseMail() error {
 	var subject = fmt.Sprintf("MineOS: Server %s (id: %s) Closed.", r.Profile.Name, r.Profile.ID.String())
 	var body = fmt.Sprintf("Server %s (id: %s) has closed if this is unintentional or unexpected please log in in order to resolve possible issue.", r.Profile.Name, r.Profile.ID.String())
+	r.mailmu.RLock()
+	defer r.mailmu.RUnlock()
 	return emails.SendEmail(r.Profile.Emails, subject, body)
+}
+
+func (r *Room) AddEmail(email ...string) {
+	r.mailmu.Lock()
+	defer r.mailmu.Unlock()
+	var a = []int{}
+	for i, mail := range email {
+		for _, m := range r.Profile.Emails {
+			if mail == m {
+				a = append(a, i)
+			}
+		}
+	}
+	var b bool
+	for i, mail := range email {
+		b = false
+		for _, j := range a {
+			if i == j {
+				b = true
+			}
+		}
+		if !b {
+			r.Profile.Emails = append(r.Profile.Emails, mail)
+		}
+	}
+}
+
+func (r *Room) MarshalRoomInfo() []byte {
+	r.mailmu.RLock()
+	defer r.mailmu.RUnlock()
+	var info = struct {
+		ID      snowflakes.ID       `json:"id"`
+		Name    string              `json:"name"`
+		Emails  []string            `json:"emails"`
+		SrvType versions.ServerType `json:"server-type"`
+		VrsID   string              `json:"version-id"`
+		State   servers.ServerState `json:"state"`
+	}{
+		ID:      r.Profile.ID,
+		Name:    r.Profile.Name,
+		Emails:  r.Profile.Emails,
+		SrvType: r.Profile.Type,
+		VrsID:   r.Profile.VersionID,
+		State:   r.Srv.State,
+	}
+	data, _ := json.Marshal(info)
+	return data
 }

@@ -82,9 +82,13 @@ func NewToken(usr *users.User) jwt.Token {
 }
 
 func CookieFromToken(token jwt.Token) *http.Cookie {
+	var val string
+	if token != nil {
+		val = token.String()
+	}
 	return &http.Cookie{
 		Name:     routes.TokenCookieName,
-		Value:    token.String(),
+		Value:    val,
 		Secure:   false,
 		HttpOnly: false,
 	}
