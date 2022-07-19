@@ -12,10 +12,11 @@ var ( //defaults
 		AssetsFolder:        "",
 		ServersFolder:       "",
 		VersionsCacheFolder: "",
+		DownloadFolder:      "",
+		Epoch:               time.Unix(0, 0),
 		UsersFile:           "",
 		ServerProfilesFile:  "",
 		BuildToolsFolder:    "",
-		Epoch:               time.Unix(0, 0),
 	}
 
 	secret = "//TODO"
@@ -27,6 +28,7 @@ type config struct {
 	AssetsFolder        string `json:"assets-folder"`
 	ServersFolder       string `json:"servers-folder"`
 	VersionsCacheFolder string `json:"versions-cache-folder"`
+	DownloadFolder      string `json:"download-folder"`
 
 	Epoch time.Time `json:"epoch"`
 

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"mineOS/config"
+	"mineOS/downloads"
 	"mineOS/emails"
 	"mineOS/manager"
 	"mineOS/rooms"
@@ -16,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -120,37 +123,42 @@ func main() {
 	router := routes.NewRouter(onAuth)
 
 	//SITE
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/login/?`, NoAuth, getLoginHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?`, NoAuth, postLoginHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/logout/?`, NoAuth, logoutHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/`, Auth, redirectHomeHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/home/?`, Auth, getHomeHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/servers/?`, Auth, getServersHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/servers/(`+idRegex+`)/?`, Auth, getServerHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/servers/(`+idRegex+`)/start/?`, Auth, startServerHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/servers/(`+idRegex+`)/stop/?`, Auth, stopServerHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/assets/(.+)/?`, Auth, assetsHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/login/?$`, NoAuth, getLoginHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?$`, NoAuth, postLoginHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/logout/?$`, NoAuth, logoutHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/$`, Auth, redirectHomeHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/home/?$`, Auth, getHomeHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/?$`, Auth, getServersHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(`+idRegex+`)/?$`, Auth, getServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/start/?$`, Auth, startServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/stop/?$`, Auth, stopServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/zip/?$`, Auth, TODO))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/assets/(.+)/?$`, Auth, assetsHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/download/(`+idRegex+`)/?$`, Auth, getDownload))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/download/(`+idRegex+`)/info/?$`, Auth, getDownloadInfo))
 
 	//API
 	//general
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/epoch/?`, Auth, getEpochHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/epoch/?$`, Auth, getEpochHandler))
 	//versions
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/versions/?`, Auth, getsrvTypeListHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/versions/([A-Z]+)/?`, Auth, getVersionIdListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/versions/?$`, Auth, getsrvTypeListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/versions/([A-Z]+)/?$`, Auth, getVersionIdListHandler))
 	//servers
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/servers/?`, Auth, getServerListHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `/api/servers/(`+idRegex+`)/?`, Auth, getServerInfoHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/api/servers/(`+idRegex+`)/emails/?`, Auth, postServerEmailHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `/api/servers/new/?`, Auth, postNewServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/servers/?$`, Auth, getServerListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/servers/(`+idRegex+`)/?$`, Auth, getServerInfoHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/api/servers/(`+idRegex+`)/emails/?$`, Auth, postServerEmailHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/api/servers/new/?$`, Auth, postNewServerHandler))
 
 	//WEBSOCKETS
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `/servers/ws/?`, Auth, serverListWebsocketHandler))
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `/servers/(`+idRegex+`)/ws/?`, Auth, serverWebsocketHandler))
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, serverListWebsocketHandler))
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(`+idRegex+`)/ws/?$`, Auth, serverWebsocketHandler))
 
 	if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
 		panic(err)
 	}
 }
+
+func TODO(w http.ResponseWriter, r *http.Request, e interface{}, matches []string)
 
 func getLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	http.ServeFile(w, r, LoginFile)
@@ -231,6 +239,54 @@ func assetsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matche
 		return
 	}
 	http.ServeFile(w, r, filepath.Join(Assets, matches[0]))
+}
+
+func getDownload(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	info, err := downloads.GetInfo(id)
+	if err != nil {
+		if err == downloads.ErrNoExists {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	dr, err := downloads.GetFile(id)
+	if err != nil {
+		if err == downloads.ErrNoExists {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer dr.Close()
+
+	w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
+	io.Copy(w, dr)
+}
+
+func getDownloadInfo(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	info, err := downloads.GetInfo(id)
+	if err != nil {
+		if err == downloads.ErrNoExists {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(info)
 }
 
 // API

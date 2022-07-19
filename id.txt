@@ -2,3 +2,8 @@ TODO: auto updates -> auto check and update with the press of a button (just nee
 TODO: option to zip and download backup
 other -> curl "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar" -o BuildTools.jar
  -> java -jar BuildTools.jar
+
+
+GET /downloads/<downloadID> -> files are removed after 30 days and check on launch, close up and after creation of new download
+
+POST /api/servers/<serverID>/zip -> {"downloadID":"6063956403958"} server must be closed

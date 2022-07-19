@@ -34,8 +34,34 @@ NOTE: Notice that at least for now the password is sent in plain text and MineOs
 ### **POST** `/servers/{serverID}/stop`
 > stops server (server must be running or Starting)
 
+### **POST** `/servers/{serverID}/zip`
+> will create compress the server into a zip archive before returning the downloadID
+
+example:
+```
+{
+    "download-id":"5689032658932",
+}
+```
+
 ### **GET** `/assets/{path-to-file}`
 > returns content of file (if it exists)
+
+### **GET** `/downloads/{downloadID}`
+> returns the content of the file
+
+### **GET** `/downloads/{downloadID}/info`
+> returns info about the file
+
+example:
+```
+{
+    "name:"server at.zip",
+    "size":4239503,
+    "sha526":"",
+    "expiration-stamp":"79503890532"
+}
+```
 
 <br>
 
