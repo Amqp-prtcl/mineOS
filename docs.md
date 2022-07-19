@@ -260,6 +260,6 @@ this connection will send `state-update` and `log-update` and can only receive `
 
 # TODO LIST
 - [ ] sanitize upon profile generation error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
-- [ ] option to zip and download backup
-- [ ] auto updates -> auto check and update with the press of a button (just need to replace .jar file)
+- [X] option to zip and download backup
+- [ ] auto updates -> auto check and update with the press of a button (just need to replace .jar file) (only present for modded versions)
 - [ ] add Bukkit and Spigot support (buildTools.jar) 

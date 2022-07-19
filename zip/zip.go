@@ -10,7 +10,17 @@ import (
 )
 
 //Zip will ignore any symlink and hardlinks are dereferenced
-func Zip(srcFolder string, dstFile string) error {
+func ZipFile(srcFolder string, dstFile string) error {
+	f, err := os.Open(dstFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return Zip(srcFolder, f)
+}
+
+// Zip does NOT close wr !
+func Zip(srcFolder string, wr io.WriteCloser) error {
 	srcFolder, err := filepath.Abs(srcFolder)
 	if err != nil {
 		return err
@@ -23,13 +33,7 @@ func Zip(srcFolder string, dstFile string) error {
 		return fmt.Errorf("%v is not a folder", srcFolder)
 	}
 
-	dstF, err := os.Create(dstFile)
-	if err != nil {
-		return err
-	}
-	defer dstF.Close()
-
-	dst := zip.NewWriter(dstF)
+	dst := zip.NewWriter(wr)
 
 	err = filepath.WalkDir(srcFolder, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

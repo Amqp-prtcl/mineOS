@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"mineOS/downloads"
+	"mineOS/zip"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Amqp-prtcl/snowflakes"
 )
@@ -20,6 +23,8 @@ const (
 	Running  ServerState = "RUNNING"
 	Stopping ServerState = "STOPPING"
 	Closed   ServerState = "CLOSED"
+
+	Zipping ServerState = "ZIPPING"
 )
 
 var (
@@ -29,8 +34,8 @@ var (
 	//[20:41:05] [Server thread/INFO]: Done (14.132s)! For help, type "help"
 	RunningReg = regexp.MustCompile(`\[.+:.+:.+\] \[Server thread\/INFO\]: Done \(.*\)! For help, type "help"`)
 
-	ErrAlreadyStarted = fmt.Errorf("Server already started")
-	ErrNotStarted     = fmt.Errorf("Server not started")
+	ErrNotClosed  = fmt.Errorf("Server is not closed")
+	ErrNotStarted = fmt.Errorf("Server not started")
 )
 
 type Server struct {
@@ -49,7 +54,7 @@ type Server struct {
 	inputs chan string
 }
 
-func NewServer(jarPath string, id snowflakes.ID) *Server {
+func NewServer(jarPath string) *Server {
 	return &Server{
 		JarPath: jarPath,
 		State:   Closed,
@@ -64,7 +69,7 @@ func (s *Server) setState(st ServerState) {
 
 func (s *Server) Start() error {
 	if s.State != Closed {
-		return ErrAlreadyStarted
+		return ErrNotClosed
 	}
 	s.res = make(chan error, 1)
 	s.logs = make(chan string, 10)
@@ -161,4 +166,22 @@ func (s *Server) listenServer() {
 		}
 		s.logs <- str
 	}
+}
+
+func (s *Server) Zip(filename string) (snowflakes.ID, error) {
+	if s.State != Closed {
+		return "", ErrNotClosed
+	}
+	s.setState(Zipping)
+	defer s.setState(Closed)
+
+	wr, id, err := downloads.NewFile(filename, 30*24*time.Hour)
+	if err != nil {
+		return id, err
+	}
+
+	err = zip.Zip(filepath.Dir(s.JarPath), wr)
+	wr.Close()
+
+	return id, err
 }

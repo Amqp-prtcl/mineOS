@@ -11,6 +11,7 @@ import (
 	"mineOS/emails"
 	"mineOS/manager"
 	"mineOS/rooms"
+	"mineOS/servers"
 	"mineOS/tokens"
 	"mineOS/users"
 	"mineOS/versions"
@@ -132,7 +133,7 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(`+idRegex+`)/?$`, Auth, getServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/start/?$`, Auth, startServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/stop/?$`, Auth, stopServerHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/zip/?$`, Auth, TODO))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/zip/?$`, Auth, zipServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/assets/(.+)/?$`, Auth, assetsHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/download/(`+idRegex+`)/?$`, Auth, getDownload))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/download/(`+idRegex+`)/info/?$`, Auth, getDownloadInfo))
@@ -158,7 +159,7 @@ func main() {
 	}
 }
 
-func TODO(w http.ResponseWriter, r *http.Request, e interface{}, matches []string)
+/*func TODO(w http.ResponseWriter, r *http.Request, e interface{}, matches []string)*/
 
 func getLoginHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	http.ServeFile(w, r, LoginFile)
@@ -210,7 +211,10 @@ func startServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, m
 	}
 	err = room.Start()
 	if err != nil {
-		log.Println(err)
+		if err == servers.ErrNotClosed {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -227,10 +231,36 @@ func stopServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, ma
 	}
 	err = room.Stop()
 	if err != nil {
-		log.Println(err)
+		if err == servers.ErrNotStarted {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func zipServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	id, err = room.Zip()
+	if err != nil {
+		if err == servers.ErrNotClosed {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(struct {
+		Id snowflakes.ID `json:"download-id"`
+	}{id})
 }
 
 func assetsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
@@ -267,7 +297,8 @@ func getDownload(w http.ResponseWriter, r *http.Request, e interface{}, matches 
 		return
 	}
 	defer dr.Close()
-
+	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(info.Name))
+	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
 	io.Copy(w, dr)
 }

@@ -7,6 +7,7 @@ import (
 	"mineOS/servers"
 	"mineOS/versions"
 	"sync"
+	"time"
 
 	"github.com/Amqp-prtcl/snowflakes"
 	"github.com/gorilla/websocket"
@@ -26,7 +27,7 @@ type Room struct {
 
 func NewRoom(profile *RoomProfile, stateCallback func(*servers.Server)) *Room {
 	r := &Room{
-		Srv:           servers.NewServer(profile.JarPath, profile.ID),
+		Srv:           servers.NewServer(profile.JarPath),
 		Profile:       profile,
 		conns:         []*websocket.Conn{},
 		mu:            sync.Mutex{},
@@ -204,4 +205,8 @@ func (r *Room) MarshalRoomInfo() []byte {
 	}
 	data, _ := json.Marshal(info)
 	return data
+}
+
+func (r *Room) Zip() (snowflakes.ID, error) {
+	return r.Srv.Zip(fmt.Sprintf("backup-server-%s-%v", r.Profile.Name, time.Now().UnixMilli()))
 }
