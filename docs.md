@@ -259,7 +259,10 @@ this connection will send `state-update` and `log-update` and can only receive `
 <br>
 
 # TODO LIST
-- [ ] sanitize upon profile generation error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
+- [X] add offline mode
+- [X] sanitize upon profile generation error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
 - [X] option to zip and download backup
+- [ ] add cahcing system for versions
+- [ ] add way of clearing cache (if possible per serverType)
 - [ ] auto updates -> auto check and update with the press of a button (just need to replace .jar file) (only present for modded versions)
-- [ ] add Bukkit and Spigot support (buildTools.jar) 
+- [ ] add Bukkit and Spigot support (buildTools.jar)

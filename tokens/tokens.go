@@ -2,6 +2,7 @@ package tokens
 
 import (
 	"encoding/json"
+	"fmt"
 	"mineOS/config"
 	"mineOS/users"
 	"net/http"
@@ -17,8 +18,8 @@ var (
 )
 
 type JwtBody struct {
-	ID    snowflakes.ID
-	stamp int64
+	ID    snowflakes.ID `json:"id"`
+	Stamp int64         `json:"stamp"`
 }
 
 func getTimestamp() int64 {
@@ -26,7 +27,7 @@ func getTimestamp() int64 {
 }
 
 func isValidStamp(stamp int64) bool {
-	return stamp < getTimestamp()
+	return stamp > getTimestamp()
 }
 
 func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
@@ -42,14 +43,15 @@ func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
 	if err != nil {
 		return nil, nil, false
 	}
-	if !isValidStamp(body.stamp) {
+	if !isValidStamp(body.Stamp) {
+		fmt.Println(4)
 		return nil, nil, false
 	}
 	usr, ok := users.GetUserbyID(body.ID)
 	if !ok {
 		return nil, nil, false
 	}
-	if body.stamp != usr.LastStamp {
+	if body.Stamp != usr.LastStamp {
 		return nil, nil, false
 	}
 	token = NewToken(usr)
@@ -76,7 +78,7 @@ func NewToken(usr *users.User) jwt.Token {
 	usr.LastStamp = getTimestamp() + ExpirationTime.Milliseconds()
 	data, _ := json.Marshal(&JwtBody{
 		ID:    usr.ID,
-		stamp: usr.LastStamp,
+		Stamp: usr.LastStamp,
 	})
 	return jwt.NewToken(data, config.GetSecret())
 }
@@ -91,5 +93,6 @@ func CookieFromToken(token jwt.Token) *http.Cookie {
 		Value:    val,
 		Secure:   false,
 		HttpOnly: false,
+		Path:     "/",
 	}
 }

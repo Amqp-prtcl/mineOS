@@ -27,8 +27,8 @@ type User struct {
 func newDefaultUser() *User {
 	return &User{
 		ID:       UsersNode.NewID(),
-		Username: "",
-		Password: "",
+		Username: "Admin",
+		Password: "Admin",
 	}
 }
 
@@ -45,6 +45,12 @@ func LoadUsers(file string) error {
 	}
 	f, err := os.Open(file)
 	if err != nil {
+		if os.IsNotExist(err) {
+			Users = []*User{}
+			fmt.Printf("Users File not found, created new default admin user: {username: Admin, password: Admin}\n")
+			Users = append(Users, newDefaultUser())
+			return nil
+		}
 		return err
 	}
 	Users = []*User{}
@@ -63,7 +69,7 @@ func LoadUsers(file string) error {
 
 func GetUserbyID(id snowflakes.ID) (*User, bool) {
 	usersmu.RLock()
-	defer usersmu.Unlock()
+	defer usersmu.RUnlock()
 	for _, usr := range Users {
 		if usr.ID == id {
 			return usr, true
@@ -74,7 +80,7 @@ func GetUserbyID(id snowflakes.ID) (*User, bool) {
 
 func GetUserbyName(usrname string) (*User, bool) {
 	usersmu.RLock()
-	defer usersmu.Unlock()
+	defer usersmu.RUnlock()
 	for _, usr := range Users {
 		if usr.Username == usrname {
 			return usr, true

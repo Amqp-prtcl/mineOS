@@ -48,7 +48,6 @@ func (m *Manager) LoadRooms(file string) error {
 	for _, p := range profiles {
 		m.Rooms = append(m.Rooms, rooms.NewRoom(p, m.OnStateChange))
 	}
-	m.roomsmu.Unlock()
 	return nil
 }
 

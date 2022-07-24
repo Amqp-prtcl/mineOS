@@ -1,25 +1,26 @@
 package versions
 
+import (
+	"mineOS/config"
+)
+
 type ServerType string
 
 const (
 	Vanilla ServerType = "VANILLA"
-	Paper   ServerType = "PAPERMC"
+	//Paper   ServerType = "PAPERMC"
 )
 
 func GetServerTypes() []ServerType {
-	return []ServerType{Vanilla, Paper}
+	return []ServerType{Vanilla /*Paper*/}
 }
 
 type Manifest interface {
 	GetVersionsList() []string
-	GetVersion(vrsid string) (Version, bool)
-	GetType() ServerType
-}
+	//GetVersion(vrsid string) (Version, bool)
 
-type Version interface {
-	GetID() string
-	DownloadServer(filepath string) error
+	// if vrsID is invalid, DownloadServer must respond with ErrVerIdNotFound
+	DownloadServer(vrsID string, path string) error
 	GetType() ServerType
 }
 
@@ -29,12 +30,16 @@ var (
 )
 
 func Setup() error {
-	var err error
-	vanillaM, err = vanillaGenerateManifest()
+	err := setupCache()
 	if err != nil {
 		return err
 	}
-	paperM, err = paperGenerateManifest()
+
+	vanillaM, err = vanillaGenerateManifest(config.Config.OfflineMode)
+	if err != nil {
+		return err
+	}
+	//paperM, err = paperGenerateManifest(config.Config.OfflineMode)
 	return err
 }
 
@@ -42,8 +47,8 @@ func GetManifestByServerType(srvType ServerType) (Manifest, bool) {
 	switch srvType {
 	case Vanilla:
 		return vanillaM, true
-	case Paper:
-		return paperM, true
+	/*case Paper:
+	return paperM, true*/
 	default:
 		return nil, false
 	}
@@ -57,10 +62,10 @@ func GetVersionIdsBuServerType(srvType ServerType) ([]string, bool) {
 	return m.GetVersionsList(), true
 }
 
-func GetVersionByServerTypeAndVersionId(srvType ServerType, vrsID string) (Version, bool) {
+func DownloadServerByServerType(srvType ServerType, vrsID string, path string) error {
 	m, ok := GetManifestByServerType(srvType)
 	if !ok {
-		return nil, false
+		return ErrSrvTypeNotFound
 	}
-	return m.GetVersion(vrsID)
+	return m.DownloadServer(vrsID, path)
 }

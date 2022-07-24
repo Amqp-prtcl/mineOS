@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"reflect"
 	"time"
@@ -9,13 +10,14 @@ import (
 
 var ( //defaults
 	defaultConfig = config{
-		AssetsFolder:        "",
-		ServersFolder:       "",
-		VersionsCacheFolder: "",
-		DownloadFolder:      "",
+		AssetsFolder:        "/Users/temp/Desktop/tasker/test/assets/",
+		ServersFolder:       "/Users/temp/Desktop/tasker/test/servers/",
+		VersionsCacheFolder: "/Users/temp/Desktop/tasker/test/versions/",
+		DownloadFolder:      "/Users/temp/Desktop/tasker/test/downloads/",
 		Epoch:               time.Unix(0, 0),
-		UsersFile:           "",
-		ServerProfilesFile:  "",
+		OfflineMode:         true,
+		UsersFile:           "/Users/temp/Desktop/tasker/test/users.json",
+		ServerProfilesFile:  "/Users/temp/Desktop/tasker/test/servers.json",
 		BuildToolsFolder:    "",
 	}
 
@@ -30,7 +32,8 @@ type config struct {
 	VersionsCacheFolder string `json:"versions-cache-folder"`
 	DownloadFolder      string `json:"download-folder"`
 
-	Epoch time.Time `json:"epoch"`
+	Epoch       time.Time `json:"epoch"`
+	OfflineMode bool      `json:"offline-mode"`
 
 	UsersFile          string `json:"users-file"`
 	ServerProfilesFile string `json:"server-profiles-file"`
@@ -47,15 +50,20 @@ func LoadConfig(path string) error {
 	err = json.NewDecoder(f).Decode(c)
 	f.Close()
 	if err != nil {
+		if err == io.EOF {
+			verifyConfig()
+			return nil
+		}
 		return err
 	}
 	Config = c
 	verifyConfig()
-	return nil
+	return SaveConfig(path)
 }
 
 func verifyConfig() {
 	if Config == nil {
+		Config = new(config)
 		*Config = defaultConfig
 		return
 	}

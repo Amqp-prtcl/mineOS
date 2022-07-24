@@ -30,13 +30,18 @@ type RoomProfile struct {
 // if file arg if empty, it will be fetch from config file
 func LoadProfiles(file string) ([]*RoomProfile, error) {
 	if file == "" {
-		file = config.Config.ServersFolder
-	}
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
+		file = config.Config.ServerProfilesFile
 	}
 	var profiles = []*RoomProfile{}
+	defer fmt.Printf("loaded %v server profiles\n", len(profiles))
+
+	f, err := os.Open(file)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return profiles, nil
+		}
+		return nil, err
+	}
 	err = json.NewDecoder(f).Decode(&profiles)
 	f.Close()
 	return profiles, err
@@ -62,13 +67,19 @@ func GenerateRoom(name string, serverType versions.ServerType, versionID string)
 	}
 	profile.JarPath = filepath.Join(serverDir, "server.jar")
 
+	var ok = false
+	defer func(ok *bool) {
+		if !(*ok) {
+			go os.RemoveAll(serverDir)
+		}
+	}(&ok)
+
 	// 2. download jar file (differs from serverType)
-	vrs, ok := versions.GetVersionByServerTypeAndVersionId(profile.Type, profile.VersionID)
-	if !ok {
-		return nil, fmt.Errorf("unknown minecraft version id: %v (server type: %v)", profile.VersionID, profile.Type)
-	}
-	err = vrs.DownloadServer(profile.JarPath)
+	err = versions.DownloadServerByServerType(profile.Type, profile.VersionID, profile.JarPath)
 	if err != nil {
+		if err == versions.ErrVerIdNotFound || err == versions.ErrSrvTypeNotFound {
+			return nil, fmt.Errorf("unknown minecraft version id: %v (server type: %v)", profile.VersionID, profile.Type)
+		}
 		return nil, err
 	}
 
@@ -101,5 +112,6 @@ func GenerateRoom(name string, serverType versions.ServerType, versionID string)
 	if err != nil {
 		return nil, err
 	}
+	ok = true
 	return profile, nil
 }

@@ -35,15 +35,11 @@ const (
 )
 
 var (
-	Root      = "/mineos/data/"
-	Assets    = Root + "assets/"
-	UsersFile = Root + "users.json"
-
-	LoginFile   = Assets + "login.html"
-	HomeFile    = Assets + "home.html"
-	RoomsFile   = Assets + "rooms.html"
-	RoomFile    = Assets + "room.html"
-	NewRoomFile = Assets + "newRoom.html"
+	LoginFile   string
+	HomeFile    string
+	RoomsFile   string
+	RoomFile    string
+	NewRoomFile string
 )
 
 var upgrader = websocket.Upgrader{
@@ -54,12 +50,18 @@ var upgrader = websocket.Upgrader{
 func init() {
 	//TODO
 
-	err := config.LoadConfig("/config")
+	err := config.LoadConfig("config.json")
 	if err != nil {
 		fmt.Printf("[ERR] Unable to load config file.\n")
 		panic(err)
 	}
 	snowflakes.SetEpoch(config.Config.Epoch)
+
+	LoginFile = config.Config.AssetsFolder + "login.html"
+	HomeFile = config.Config.AssetsFolder + "home.html"
+	RoomsFile = config.Config.AssetsFolder + "rooms.html"
+	RoomFile = config.Config.AssetsFolder + "room.html"
+	NewRoomFile = config.Config.AssetsFolder + "newRoom.html"
 
 	//protocol:
 	// create directories
@@ -67,15 +69,28 @@ func init() {
 	if err != nil {
 		panic(err)
 	}*/
-	info, err := os.Stat(Assets)
-	if err != nil || info.IsDir() {
+	info, err := os.Stat(config.Config.AssetsFolder)
+	if err != nil || !info.IsDir() {
 		fmt.Printf("[ERR] Assest directory not found\n")
+		panic(err)
+	}
+
+	err = os.MkdirAll(config.Config.DownloadFolder, 0664)
+	if err != nil {
+		fmt.Printf("[ERR] Unable to create download directory\n")
+		panic(err)
+	}
+
+	err = os.MkdirAll(config.Config.ServersFolder, 0664)
+	if err != nil {
+		fmt.Printf("Unable to create servers directory\n")
 		panic(err)
 	}
 
 	// check for users -> if no users create admin and ask to change default password
 	err = users.LoadUsers("")
 	if err != nil {
+		fmt.Printf("[ERR] failed to load users file.\n")
 		panic(err)
 	}
 
@@ -98,10 +113,11 @@ func init() {
 	fmt.Printf("java found\n")
 
 	//fetching minecraft vanilla versions
+
 	fmt.Printf("fetching minecraft versions...\n")
 	err = versions.Setup()
 	if err != nil {
-		fmt.Printf("failed to fetch vanilla versions...\n")
+		fmt.Printf("[ERR] failed to fetch minecraft versions...\n")
 		panic(err)
 	}
 
@@ -154,6 +170,7 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, serverListWebsocketHandler))
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(`+idRegex+`)/ws/?$`, Auth, serverWebsocketHandler))
 
+	fmt.Println("Http Server Running, close with Ctrl+C")
 	if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
 		panic(err)
 	}
@@ -268,7 +285,7 @@ func assetsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matche
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	http.ServeFile(w, r, filepath.Join(Assets, matches[0]))
+	http.ServeFile(w, r, filepath.Join(config.Config.AssetsFolder, matches[0]))
 }
 
 func getDownload(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
