@@ -65,7 +65,7 @@ func init() {
 
 	//protocol:
 	// create directories
-	/*err := os.MkdirAll(Assets, 0664)
+	/*err := os.MkdirAll(Assets, 0666)
 	if err != nil {
 		panic(err)
 	}*/
@@ -75,13 +75,13 @@ func init() {
 		panic(err)
 	}
 
-	err = os.MkdirAll(config.Config.DownloadFolder, 0664)
+	err = os.MkdirAll(config.Config.DownloadFolder, 0666)
 	if err != nil {
 		fmt.Printf("[ERR] Unable to create download directory\n")
 		panic(err)
 	}
 
-	err = os.MkdirAll(config.Config.ServersFolder, 0664)
+	err = os.MkdirAll(config.Config.ServersFolder, 0666)
 	if err != nil {
 		fmt.Printf("Unable to create servers directory\n")
 		panic(err)
@@ -142,7 +142,7 @@ func main() {
 	//SITE
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/login/?$`, NoAuth, getLoginHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/login/?$`, NoAuth, postLoginHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/logout/?$`, NoAuth, logoutHandler))
+	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/logout/?$`, NoAuth, logoutHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/$`, Auth, redirectHomeHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/home/?$`, Auth, getHomeHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/?$`, Auth, getServersHandler))
@@ -430,9 +430,11 @@ func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{},
 	}
 	prof, err := rooms.GenerateRoom(info.Name, info.SrvType, info.VrsID) // TODO: sanitize upon error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
 	if err != nil {
+		fmt.Println(2, err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	prof.Emails = append([]string{}, info.Emails...)
 	ok := manager.M.NewRoom(prof)
 	if !ok {
 		w.WriteHeader(http.StatusConflict)

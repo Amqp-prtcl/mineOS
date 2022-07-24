@@ -4,7 +4,9 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"mineOS/config"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -64,7 +66,8 @@ func (d *vanillaDownload) waitFor() chan *vanillaCache {
 // should be run as goroutine
 //
 // returned err value can be ignored and might only be used as debug or error message
-func (d *vanillaDownload) download(path string) error {
+func (d *vanillaDownload) download() error {
+	var path = filepath.Join(config.Config.VersionsCacheFolder, string(Vanilla), d.vers.ID, "server.jar")
 	var meta = struct {
 		Downloads struct {
 			Server struct {
@@ -85,7 +88,7 @@ func (d *vanillaDownload) download(path string) error {
 			for i, down := range m.cacheDown {
 				if down == d {
 					m.cacheDown[i] = nil
-					m.cacheDown[i] = m.cacheDown[len(m.cacheDown)]
+					m.cacheDown[i] = m.cacheDown[len(m.cacheDown)-1]
 					m.cacheDown = m.cacheDown[:len(m.cacheDown)-1]
 					return
 				}
@@ -94,6 +97,7 @@ func (d *vanillaDownload) download(path string) error {
 	}(d.m, d)
 	err = DownloadFile(path, meta.Downloads.Server.Url, meta.Downloads.Server.Size, meta.Downloads.Server.Sha1, sha1.New)
 	if err == nil {
+		fmt.Println(3, err)
 		d.cache = &vanillaCache{
 			ID:   d.vers.ID,
 			Type: d.vers.Type,
@@ -152,11 +156,13 @@ func (v vanillaCache) downloadServer(path string) error {
 
 	dst, err := os.Create(path)
 	if err != nil {
+		src.Close()
 		return err
 	}
-	defer dst.Close()
 
-	_, err = io.Copy(src, dst)
+	_, err = io.Copy(dst, src)
+	src.Close()
+	dst.Close()
 	if err != nil {
 		return err
 	}
@@ -205,13 +211,34 @@ func (m *vanillaManifest) SyncWithCache() {
 }
 
 // It is caller's responsibility to lock Mutexes
-func (m *vanillaManifest) getCacheVersion(vrsID string) (*vanillaCache, bool)
+func (m *vanillaManifest) getCacheVersion(vrsID string) (*vanillaCache, bool) {
+	for _, v := range m.cacheVers {
+		if v.ID == vrsID {
+			return v, true
+		}
+	}
+	return nil, false
+}
 
 // It is caller's responsibility to lock Mutexes
-func (m *vanillaManifest) getDownloadingVersion(vrsID string) (*vanillaDownload, bool)
+func (m *vanillaManifest) getDownloadingVersion(vrsID string) (*vanillaDownload, bool) {
+	for _, v := range m.cacheDown {
+		if v.vers.ID == vrsID {
+			return v, true
+		}
+	}
+	return nil, false
+}
 
 // It is caller's responsibility to lock Mutexes
-func (m *vanillaManifest) getVersion(vrsID string) (*vanillaVersion, bool)
+func (m *vanillaManifest) getVersion(vrsID string) (*vanillaVersion, bool) {
+	for _, v := range m.Versions {
+		if v.ID == vrsID {
+			return v, true
+		}
+	}
+	return nil, false
+}
 
 func (m *vanillaManifest) DownloadServer(vrsID string, path string) error {
 	m.mu.Lock()
@@ -237,6 +264,12 @@ func (m *vanillaManifest) DownloadServer(vrsID string, path string) error {
 		}
 		m.cacheDown = append(m.cacheDown, down)
 		m.mu.Unlock()
+		go func() {
+			err := down.download()
+			if err != nil {
+				fmt.Println(1, err)
+			}
+		}()
 		cache := <-down.waitFor()
 		if cache == nil {
 			return fmt.Errorf("[vanilla manifest] download of versionID %v failed", vrsID)

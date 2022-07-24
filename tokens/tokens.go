@@ -2,7 +2,6 @@ package tokens
 
 import (
 	"encoding/json"
-	"fmt"
 	"mineOS/config"
 	"mineOS/users"
 	"net/http"
@@ -44,7 +43,6 @@ func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
 		return nil, nil, false
 	}
 	if !isValidStamp(body.Stamp) {
-		fmt.Println(4)
 		return nil, nil, false
 	}
 	usr, ok := users.GetUserbyID(body.ID)

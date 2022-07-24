@@ -134,12 +134,12 @@ func (r *Room) onStateChange(_ *servers.Server) {
 	case servers.Running:
 		err := r.sendRunningEmail()
 		if err != nil {
-			fmt.Printf("Error sending running email(s): %v", err)
+			fmt.Printf("Error sending running email(s): %v\n", err)
 		}
 	case servers.Closed:
 		err := r.sendCloseMail()
 		if err != nil {
-			fmt.Printf("Error sending closing email(s): %v", err)
+			fmt.Printf("Error sending closing email(s): %v\n", err)
 		}
 	}
 }

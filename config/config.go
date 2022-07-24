@@ -15,7 +15,7 @@ var ( //defaults
 		VersionsCacheFolder: "/Users/temp/Desktop/tasker/test/versions/",
 		DownloadFolder:      "/Users/temp/Desktop/tasker/test/downloads/",
 		Epoch:               time.Unix(0, 0),
-		OfflineMode:         true,
+		OfflineMode:         false,
 		UsersFile:           "/Users/temp/Desktop/tasker/test/users.json",
 		ServerProfilesFile:  "/Users/temp/Desktop/tasker/test/servers.json",
 		BuildToolsFolder:    "",
@@ -42,7 +42,7 @@ type config struct {
 }
 
 func LoadConfig(path string) error {
-	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0664)
+	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func verifyConfig() {
 }
 
 func SaveConfig(path string) error {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
 	}

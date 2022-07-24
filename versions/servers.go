@@ -26,7 +26,7 @@ type Manifest interface {
 
 var (
 	vanillaM Manifest
-	paperM   Manifest
+	//paperM   Manifest
 )
 
 func Setup() error {

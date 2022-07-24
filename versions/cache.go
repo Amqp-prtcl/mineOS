@@ -14,7 +14,7 @@ var (
 )
 
 func setupCache() error {
-	err := os.MkdirAll(config.Config.VersionsCacheFolder, 0664)
+	err := os.MkdirAll(config.Config.VersionsCacheFolder, 0666)
 	if err != nil {
 		return err
 	}

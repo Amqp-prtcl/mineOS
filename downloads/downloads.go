@@ -69,7 +69,7 @@ func GetFile(id snowflakes.ID) (io.ReadCloser, error) {
 func NewFile(name string, expiresIn time.Duration) (io.WriteCloser, snowflakes.ID, error) {
 	id := downloadNode.NewID()
 
-	err := os.MkdirAll(config.Config.DownloadFolder, 0664)
+	err := os.MkdirAll(config.Config.DownloadFolder, 0666)
 	if err != nil {
 		fmt.Printf("Unable to create download directory: %s\n", err.Error())
 		return nil, "", err

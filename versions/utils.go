@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 )
 
@@ -21,12 +22,14 @@ var (
 func DownloadFile(path string, url string, size int64, sum string, hash func() hash.Hash) error {
 	err := unsafeDownloadFile(path, url)
 	if err != nil {
+		fmt.Println(3.1, err)
 		return err
 	}
 
 	//verify size
 	stat, err := os.Lstat(path)
 	if err != nil {
+		fmt.Println(3.2, err)
 		os.RemoveAll(path)
 		return err
 	}
@@ -45,6 +48,7 @@ func DownloadFile(path string, url string, size int64, sum string, hash func() h
 	}
 	s, err := GetSum(path, hash)
 	if err != nil {
+		fmt.Println(3.3, err)
 		os.RemoveAll(path)
 		return fmt.Errorf("failed to compute file hash")
 	}
@@ -57,8 +61,13 @@ func DownloadFile(path string, url string, size int64, sum string, hash func() h
 
 func unsafeDownloadFile(path string, url string) error {
 	// Create the file
-	out, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0777)
+	err := os.MkdirAll(filepath.Dir(path), 0666)
 	if err != nil {
+		return err
+	}
+	out, err := os.Create(path)
+	if err != nil {
+		fmt.Println("3.1.1", err)
 		return err
 	}
 	defer out.Close()
