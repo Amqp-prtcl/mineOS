@@ -23,7 +23,33 @@ type vanillaManifest struct {
 	Versions  []*vanillaVersion  `json:"versions"`
 	cacheVers []*vanillaCache    `json:"-"`
 	cacheDown []*vanillaDownload `json:"-"`
-	mu        sync.RWMutex       `json:"-"`
+	mu        sync.Mutex         `json:"-"`
+}
+
+func (m *vanillaManifest) GetType() ServerType { return Vanilla }
+
+//TODO sync mith cache
+func vanillaGenerateManifest(offline bool) (Manifest, error) {
+	var m = &vanillaManifest{}
+	var err error
+	if !offline {
+		err = RetrieveStructFromUrl(vanillaManifestUrl, &m)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = m.loadCache()
+	return m, err
+}
+
+func (m *vanillaManifest) GetVersionsList() []string {
+	m.mu.Lock()
+	var vrs = make([]string, len(m.Versions))
+	for i := range m.Versions {
+		vrs[i] = m.Versions[i].ID
+	}
+	m.mu.Unlock()
+	return vrs
 }
 
 type vanillaVersion struct {
@@ -35,10 +61,10 @@ type vanillaVersion struct {
 }
 
 type vanillaCache struct {
-	ID   string
-	Type string
-	Sha1 string
-	Path string
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	Sha1 string `json:"sha1"`
+	Path string `json:"path"`
 }
 
 type vanillaDownload struct {
@@ -90,6 +116,10 @@ func (d *vanillaDownload) download() error {
 					m.cacheDown[i] = nil
 					m.cacheDown[i] = m.cacheDown[len(m.cacheDown)-1]
 					m.cacheDown = m.cacheDown[:len(m.cacheDown)-1]
+					if d.cache != nil {
+						m.cacheVers = append(m.cacheVers, d.cache)
+					}
+					m.saveCache()
 					return
 				}
 			}
@@ -106,37 +136,12 @@ func (d *vanillaDownload) download() error {
 		}
 	}
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	d.done = true
 	for _, c := range d.cs {
 		c <- d.cache
 	}
+	d.mu.Unlock()
 	return err
-}
-
-func (m *vanillaManifest) GetType() ServerType { return Vanilla }
-
-//TODO sync mith cache
-func vanillaGenerateManifest(offline bool) (Manifest, error) {
-	var m = &vanillaManifest{}
-	var err error
-	if !offline {
-		err = RetrieveStructFromUrl(vanillaManifestUrl, &m)
-		/*for i := range m.Versions {
-			m.Versions[i].m = m
-		}*/
-	}
-	return m, err
-}
-
-func (m *vanillaManifest) GetVersionsList() []string {
-	m.mu.RLock()
-	var vrs = make([]string, len(m.Versions))
-	for i := range m.Versions {
-		vrs[i] = m.Versions[i].ID
-	}
-	m.mu.RUnlock()
-	return vrs
 }
 
 func (v vanillaCache) downloadServer(path string) error {
@@ -177,8 +182,8 @@ func (v vanillaCache) downloadServer(path string) error {
 	return nil
 }
 
-//TODO save cache before ??
-func (m *vanillaManifest) SyncWithCache() {
+// Locks mutexes
+func (m *vanillaManifest) loadCache() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -186,13 +191,12 @@ func (m *vanillaManifest) SyncWithCache() {
 
 	inter, ok := cacheGet(string(m.GetType()))
 	if !ok {
-		fmt.Printf("vanilla cache empty.\n")
-		return
+		// just no cache present
+		return nil
 	}
 	cache, ok := inter.([]interface{})
 	if !ok {
-		fmt.Printf("invalid vanilla cache.\n")
-		return
+		return fmt.Errorf("cannot load vanilla cache: failed to cast to []interface{} (got type: %T)", inter)
 	}
 
 	for _, v := range cache {
@@ -208,6 +212,12 @@ func (m *vanillaManifest) SyncWithCache() {
 		}
 		m.cacheVers = append(m.cacheVers, a)
 	}
+	return nil
+}
+
+//does NOT lock mutexes
+func (m *vanillaManifest) saveCache() {
+	cachePut(string(m.GetType()), m.cacheVers) // there may be race condition
 }
 
 // It is caller's responsibility to lock Mutexes

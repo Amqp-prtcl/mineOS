@@ -53,24 +53,8 @@ func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
 		return nil, nil, false
 	}
 	token = NewToken(usr)
-	// usr.LastStamp = mustExtractStamp(token) already done in NewToken
 	return token, usr, true
 }
-
-/*
-func mustExtractStamp(token jwt.Token) int64 {
-	data, err := token.GetBody()
-	if err != nil {
-		panic(err)
-	}
-	var body JwtBody
-	err = json.Unmarshal(data, &body)
-	if err != nil {
-		panic(err)
-	}
-	return body.stamp
-}
-*/
 
 func NewToken(usr *users.User) jwt.Token {
 	usr.LastStamp = getTimestamp() + ExpirationTime.Milliseconds()

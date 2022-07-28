@@ -68,9 +68,10 @@ func Zip(srcFolder string, wr io.WriteCloser) error {
 		defer f.Close()
 
 		wr, err := dst.CreateHeader(&zip.FileHeader{
-			Name:     rel,
-			Method:   zip.Deflate,
-			Modified: info.ModTime(),
+			Name:               rel,
+			Method:             zip.Deflate,
+			Modified:           info.ModTime(),
+			UncompressedSize64: uint64(info.Size()),
 		})
 		if err != nil {
 			return err

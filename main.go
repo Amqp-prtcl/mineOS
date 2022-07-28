@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -65,13 +66,9 @@ func init() {
 
 	//protocol:
 	// create directories
-	/*err := os.MkdirAll(Assets, 0666)
-	if err != nil {
-		panic(err)
-	}*/
 	info, err := os.Stat(config.Config.AssetsFolder)
 	if err != nil || !info.IsDir() {
-		fmt.Printf("[ERR] Assest directory not found\n")
+		fmt.Printf("[ERR] Asset directory not found\n")
 		panic(err)
 	}
 
@@ -83,11 +80,10 @@ func init() {
 
 	err = os.MkdirAll(config.Config.ServersFolder, 0666)
 	if err != nil {
-		fmt.Printf("Unable to create servers directory\n")
+		fmt.Printf("[ERR] Unable to create servers directory\n")
 		panic(err)
 	}
 
-	// check for users -> if no users create admin and ask to change default password
 	err = users.LoadUsers("")
 	if err != nil {
 		fmt.Printf("[ERR] failed to load users file.\n")
@@ -112,10 +108,10 @@ func init() {
 	}
 	fmt.Printf("java found\n")
 
-	//fetching minecraft vanilla versions
+	//fetching minecraft versions
 
 	fmt.Printf("fetching minecraft versions...\n")
-	err = versions.Setup()
+	err = versions.Setup("")
 	if err != nil {
 		fmt.Printf("[ERR] failed to fetch minecraft versions...\n")
 		panic(err)
@@ -170,9 +166,25 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, serverListWebsocketHandler))
 	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(`+idRegex+`)/ws/?$`, Auth, serverWebsocketHandler))
 
+	var closeChann = make(chan os.Signal, 1)
+	signal.Notify(closeChann, os.Interrupt)
 	fmt.Println("Http Server Running, close with Ctrl+C")
-	if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
-		panic(err)
+	go func() {
+		if err := router.ListenAndServe("0.0.0.0:8080"); err != nil {
+			fmt.Printf("Http server stopped: %v", err)
+		}
+	}()
+	<-closeChann
+	fmt.Printf("Closing server...\n")
+	fmt.Printf("Saving rooms...\n")
+	err := manager.M.SaveRooms("")
+	if err != nil {
+		fmt.Printf("failed to save rooms: %v", err)
+	}
+	fmt.Printf("saving versions cache...\n")
+	err = versions.Save("")
+	if err != nil {
+		fmt.Printf("failed to save versions cache: %v", err)
 	}
 }
 

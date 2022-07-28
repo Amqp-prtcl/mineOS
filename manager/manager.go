@@ -51,6 +51,17 @@ func (m *Manager) LoadRooms(file string) error {
 	return nil
 }
 
+// if file is empty, it is fetched from config
+func (m *Manager) SaveRooms(file string) error {
+	m.roomsmu.RLock()
+	defer m.roomsmu.RUnlock()
+	var a = []*rooms.RoomProfile{}
+	for _, room := range m.Rooms {
+		a = append(a, room.Profile) // TODO can be race condition with emails
+	}
+	return rooms.SaveProfiles(file, a)
+}
+
 func (m *Manager) GetRoombyID(id snowflakes.ID) (*rooms.Room, bool) {
 	m.roomsmu.RLock()
 	defer m.roomsmu.RUnlock()

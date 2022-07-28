@@ -163,6 +163,7 @@ func (r *Room) sendCloseMail() error {
 func (r *Room) AddEmail(email ...string) {
 	r.mailmu.Lock()
 	defer r.mailmu.Unlock()
+	// to avoid having multiple times same emails
 	var a = []int{}
 	for i, mail := range email {
 		for _, m := range r.Profile.Emails {

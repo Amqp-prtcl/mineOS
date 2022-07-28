@@ -119,7 +119,7 @@ func RetrieveStructFromUrl(url string, e interface{}) error {
 func DecodeMapToStruct(m map[string]interface{}, v interface{}) (i int) {
 	val := reflect.ValueOf(v).Elem()
 	for _, field := range reflect.VisibleFields(val.Type()) {
-		str, ok := field.Tag.Lookup("fromMap")
+		str, ok := field.Tag.Lookup("cache")
 		if !ok {
 			str = field.Name
 		}
@@ -154,4 +154,21 @@ func DecodeMapToStruct(m map[string]interface{}, v interface{}) (i int) {
 		fmt.Printf("WTF ?? \n") // is slice or array or func or chan or map
 	}
 	return
+}
+
+// panics if s is not a struct
+func EncodeStructToMap(s interface{}) map[string]interface{} {
+	var m = map[string]interface{}{}
+	val := reflect.ValueOf(s)
+	for val.Kind() == reflect.Pointer {
+		val = val.Elem()
+	}
+	for _, field := range reflect.VisibleFields(val.Type()) {
+		tagName, ok := field.Tag.Lookup("cache")
+		if !ok {
+			continue
+		}
+		m[tagName] = val.FieldByIndex(field.Index).Interface()
+	}
+	return m
 }

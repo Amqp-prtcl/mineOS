@@ -29,8 +29,8 @@ var (
 	//paperM   Manifest
 )
 
-func Setup() error {
-	err := setupCache()
+func Setup(cachePath string) error {
+	err := loadCache(cachePath)
 	if err != nil {
 		return err
 	}
@@ -41,6 +41,10 @@ func Setup() error {
 	}
 	//paperM, err = paperGenerateManifest(config.Config.OfflineMode)
 	return err
+}
+
+func Save(cachePath string) error {
+	return saveCache(cachePath)
 }
 
 func GetManifestByServerType(srvType ServerType) (Manifest, bool) {

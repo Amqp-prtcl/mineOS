@@ -13,15 +13,18 @@ var (
 	cachemu = sync.RWMutex{}
 )
 
-func setupCache() error {
-	err := os.MkdirAll(config.Config.VersionsCacheFolder, 0666)
+func loadCache(cachePath string) error {
+	if cachePath == "" {
+		cachePath = config.Config.VersionsCacheFolder
+	}
+	err := os.MkdirAll(cachePath, 0666)
 	if err != nil {
 		return err
 	}
-	f, err := os.Open(filepath.Join(config.Config.VersionsCacheFolder, "versions.json"))
+	f, err := os.Open(filepath.Join(cachePath, "versions.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return saveCache()
+			return saveCache(cachePath)
 		}
 		return err
 	}
@@ -29,8 +32,11 @@ func setupCache() error {
 	return json.NewDecoder(f).Decode(&cache)
 }
 
-func saveCache() error {
-	f, err := os.Create(filepath.Join(config.Config.VersionsCacheFolder, "versions.json"))
+func saveCache(cachePath string) error {
+	if cachePath == "" {
+		cachePath = config.Config.VersionsCacheFolder
+	}
+	f, err := os.Create(filepath.Join(cachePath, "versions.json"))
 	if err != nil {
 		return err
 	}

@@ -33,7 +33,6 @@ func LoadProfiles(file string) ([]*RoomProfile, error) {
 		file = config.Config.ServerProfilesFile
 	}
 	var profiles = []*RoomProfile{}
-	defer fmt.Printf("loaded %v server profiles\n", len(profiles))
 
 	f, err := os.Open(file)
 	if err != nil {
@@ -42,9 +41,22 @@ func LoadProfiles(file string) ([]*RoomProfile, error) {
 		}
 		return nil, err
 	}
+	defer f.Close()
 	err = json.NewDecoder(f).Decode(&profiles)
-	f.Close()
+	fmt.Printf("loaded %v server profiles\n", len(profiles))
 	return profiles, err
+}
+
+func SaveProfiles(file string, l []*RoomProfile) error {
+	if file == "" {
+		file = config.Config.ServerProfilesFile
+	}
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(l)
 }
 
 func GenerateRoom(name string, serverType versions.ServerType, versionID string) (*RoomProfile, error) {
@@ -61,7 +73,7 @@ func GenerateRoom(name string, serverType versions.ServerType, versionID string)
 	// 1. generate id and create directory
 	profile.ID = ServersNode.NewID()
 	var serverDir = filepath.Join(config.Config.ServersFolder, profile.ID.String())
-	err := os.MkdirAll(serverDir, 0777)
+	err := os.MkdirAll(serverDir, 0666)
 	if err != nil {
 		return nil, err
 	}
