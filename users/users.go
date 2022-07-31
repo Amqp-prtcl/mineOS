@@ -3,7 +3,7 @@ package users
 import (
 	"encoding/json"
 	"fmt"
-	"mineOS/config"
+	"mineOS/globals"
 	"os"
 	"sync"
 
@@ -35,7 +35,7 @@ func newDefaultUser() *User {
 // if file arg is not present, it is fetched from config file
 func LoadUsers(file string) error {
 	if file == "" {
-		file = config.Config.UsersFile
+		file = globals.WarnConfigGet[string]("users-file")
 	}
 	usersmu.Lock()
 	defer usersmu.Unlock()

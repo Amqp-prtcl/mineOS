@@ -2,95 +2,114 @@ package config
 
 import (
 	"encoding/json"
-	"io"
+	"fmt"
 	"os"
-	"reflect"
-	"time"
+	"sync"
 )
 
-var ( //defaults
-	defaultConfig = config{
-		AssetsFolder:        "/Users/temp/Desktop/tasker/test/assets/",
-		ServersFolder:       "/Users/temp/Desktop/tasker/test/servers/",
-		VersionsCacheFolder: "/Users/temp/Desktop/tasker/test/versions/",
-		DownloadFolder:      "/Users/temp/Desktop/tasker/test/downloads/",
-		Epoch:               time.Unix(0, 0),
-		OfflineMode:         false,
-		UsersFile:           "/Users/temp/Desktop/tasker/test/users.json",
-		ServerProfilesFile:  "/Users/temp/Desktop/tasker/test/servers.json",
-		BuildToolsFolder:    "",
-	}
-
-	secret = "//TODO"
-
-	Config *config
-)
-
-type config struct {
-	AssetsFolder        string `json:"assets-folder"`
-	ServersFolder       string `json:"servers-folder"`
-	VersionsCacheFolder string `json:"versions-cache-folder"`
-	DownloadFolder      string `json:"download-folder"`
-
-	Epoch       time.Time `json:"epoch"`
-	OfflineMode bool      `json:"offline-mode"`
-
-	UsersFile          string `json:"users-file"`
-	ServerProfilesFile string `json:"server-profiles-file"`
-
-	BuildToolsFolder string `json:"build-tools-folder"`
+// it is safe for concurrent use
+type Config struct {
+	Config   map[string]interface{}
+	Filepath string
+	mu       sync.RWMutex
 }
 
-func LoadConfig(path string) error {
-	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
+// Default values are optionals (set to nil or use an empty map to skip it); LoadConfigFile will use the map to make up
+// for all value present in Default but not in file.
+//
+// Warning: LoadConfigFile only does shallow copies of values in default (take care about race conditions)
+func LoadConfigFile(filepath string, defaults map[string]interface{}) (*Config, error) {
+	var config = &Config{
+		Config:   map[string]interface{}{},
+		Filepath: filepath,
+		mu:       sync.RWMutex{},
 	}
-	var c = new(config)
-	err = json.NewDecoder(f).Decode(c)
-	f.Close()
-	if err != nil {
-		if err == io.EOF {
-			verifyConfig()
-			return nil
+	defer func() {
+		for k, v := range defaults { // range already check for nil maps
+			if _, ok := config.Config[k]; !ok {
+				config.Config[k] = v
+			}
 		}
-		return err
+	}()
+	f, err := os.Open(filepath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return config, nil
+		}
+		return nil, err
 	}
-	Config = c
-	verifyConfig()
-	return SaveConfig(path)
+	defer f.Close()
+	return config, json.NewDecoder(f).Decode(&config.Config)
 }
 
-func verifyConfig() {
-	if Config == nil {
-		Config = new(config)
-		*Config = defaultConfig
-		return
-	}
-	v := reflect.ValueOf(Config)
-	defaultV := reflect.ValueOf(defaultConfig)
-	l := v.NumField()
-	for i := 0; i < l; i++ {
-		if v.Field(i).IsZero() {
-			v.Field(i).Set(defaultV.Field(i))
+func (c *Config) Get(key string) (interface{}, bool) {
+	c.mu.RLock()
+	v, ok := c.Config[key]
+	c.mu.RUnlock()
+	return v, ok
+}
+
+func (c *Config) Put(key string, val interface{}) {
+	c.mu.Lock()
+	c.Config[key] = val
+	c.mu.Unlock()
+}
+
+// SyncWithDefaults will use the map to make up for all value present in default but not in file.
+//
+// Warning: SyncWithDefaults only does shallow copies of values in default (take care about race conditions)
+func (c *Config) SyncWithDefaults(defaults map[string]interface{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k, v := range defaults {
+		if _, ok := c.Config[k]; !ok {
+			c.Config[k] = v
 		}
 	}
 }
 
-func SaveConfig(path string) error {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+// Warning: GetCopyOfConfig only does shallow copies of values in default (take care about race conditions)
+func (c *Config) GetCopyOfConfig() map[string]interface{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var m = map[string]interface{}{}
+	for k, v := range c.Config {
+		m[k] = v
+	}
+	return m
+}
+
+func (c *Config) SaveFile() error {
+	f, err := os.Create(c.Filepath)
 	if err != nil {
 		return err
 	}
-	if Config != nil {
-		err = json.NewEncoder(f).Encode(Config)
-	} else {
-		err = json.NewEncoder(f).Encode(defaultConfig)
-	}
-	f.Close()
-	return err
+	defer f.Close()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return json.NewEncoder(f).Encode(c.Config)
 }
 
-func GetSecret() string {
-	return secret
+func Get[T any](config *Config, key string) (T, bool) {
+	var ret T
+	v, ok := config.Get(key)
+	if !ok {
+		return ret, false
+	}
+	ret, ok = v.(T)
+	return ret, ok
+}
+
+// same as Get but gives more detail about what failed
+func GetErr[T any](config *Config, key string) (T, error) {
+	var ret T
+	v, ok := config.Get(key)
+	if !ok {
+		return ret, fmt.Errorf("config file Get: key not found")
+	}
+	ret, ok = v.(T)
+	if !ok {
+		return ret, fmt.Errorf("config file Get: failed to cast value (wanted type: %T but got type: %T)", ret, v)
+	}
+	return ret, nil
 }

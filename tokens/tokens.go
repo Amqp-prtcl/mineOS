@@ -2,7 +2,7 @@ package tokens
 
 import (
 	"encoding/json"
-	"mineOS/config"
+	"mineOS/globals"
 	"mineOS/users"
 	"net/http"
 	"time"
@@ -33,7 +33,7 @@ func ProcessToken(token jwt.Token) (jwt.Token, *users.User, bool) {
 	if token == nil {
 		return nil, nil, false
 	}
-	data, ok := token.ValidateToken(config.GetSecret())
+	data, ok := token.ValidateToken(globals.GetSecret())
 	if !ok {
 		return nil, nil, false
 	}
@@ -62,7 +62,7 @@ func NewToken(usr *users.User) jwt.Token {
 		ID:    usr.ID,
 		Stamp: usr.LastStamp,
 	})
-	return jwt.NewToken(data, config.GetSecret())
+	return jwt.NewToken(data, globals.GetSecret())
 }
 
 func CookieFromToken(token jwt.Token) *http.Cookie {

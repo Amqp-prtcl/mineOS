@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mineOS/config"
 	"mineOS/downloads"
 	"mineOS/emails"
+	"mineOS/globals"
 	"mineOS/manager"
 	"mineOS/rooms"
 	"mineOS/servers"
@@ -49,36 +49,37 @@ var upgrader = websocket.Upgrader{
 }
 
 func init() {
-	//TODO
 
-	err := config.LoadConfig("config.json")
+	var m map[string]interface{}
+	var err = globals.Setup(m)
+	//err := config.LoadConfig("config.json")
 	if err != nil {
 		fmt.Printf("[ERR] Unable to load config file.\n")
 		panic(err)
 	}
-	snowflakes.SetEpoch(config.Config.Epoch)
+	snowflakes.SetEpoch(globals.WarnConfigGet[time.Time]("epoch"))
 
-	LoginFile = config.Config.AssetsFolder + "login.html"
-	HomeFile = config.Config.AssetsFolder + "home.html"
-	RoomsFile = config.Config.AssetsFolder + "rooms.html"
-	RoomFile = config.Config.AssetsFolder + "room.html"
-	NewRoomFile = config.Config.AssetsFolder + "newRoom.html"
+	LoginFile = globals.WarnConfigGet[string]("assets-folder") + "login.html"
+	HomeFile = globals.WarnConfigGet[string]("assets-folder") + "home.html"
+	RoomsFile = globals.WarnConfigGet[string]("assets-folder") + "rooms.html"
+	RoomFile = globals.WarnConfigGet[string]("assets-folder") + "room.html"
+	NewRoomFile = globals.WarnConfigGet[string]("assets-folder") + "newRoom.html"
 
 	//protocol:
 	// create directories
-	info, err := os.Stat(config.Config.AssetsFolder)
+	info, err := os.Stat(globals.WarnConfigGet[string]("assets-folder"))
 	if err != nil || !info.IsDir() {
 		fmt.Printf("[ERR] Asset directory not found\n")
 		panic(err)
 	}
 
-	err = os.MkdirAll(config.Config.DownloadFolder, 0666)
+	err = os.MkdirAll(globals.WarnConfigGet[string]("download-folder"), 0666)
 	if err != nil {
 		fmt.Printf("[ERR] Unable to create download directory\n")
 		panic(err)
 	}
 
-	err = os.MkdirAll(config.Config.ServersFolder, 0666)
+	err = os.MkdirAll(globals.WarnConfigGet[string]("servers-folder"), 0666)
 	if err != nil {
 		fmt.Printf("[ERR] Unable to create servers directory\n")
 		panic(err)
@@ -111,7 +112,7 @@ func init() {
 	//fetching minecraft versions
 
 	fmt.Printf("fetching minecraft versions...\n")
-	err = versions.Setup("")
+	err = versions.Setup("", globals.WarnConfigGet[bool]("offline-mode"))
 	if err != nil {
 		fmt.Printf("[ERR] failed to fetch minecraft versions...\n")
 		panic(err)
@@ -297,7 +298,7 @@ func assetsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matche
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	http.ServeFile(w, r, filepath.Join(config.Config.AssetsFolder, matches[0]))
+	http.ServeFile(w, r, filepath.Join(globals.WarnConfigGet[string]("assets-folder"), matches[0]))
 }
 
 func getDownload(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {

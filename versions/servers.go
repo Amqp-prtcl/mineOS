@@ -1,9 +1,5 @@
 package versions
 
-import (
-	"mineOS/config"
-)
-
 type ServerType string
 
 const (
@@ -29,13 +25,13 @@ var (
 	//paperM   Manifest
 )
 
-func Setup(cachePath string) error {
+func Setup(cachePath string, offline bool) error {
 	err := loadCache(cachePath)
 	if err != nil {
 		return err
 	}
 
-	vanillaM, err = vanillaGenerateManifest(config.Config.OfflineMode)
+	vanillaM, err = vanillaGenerateManifest(offline)
 	if err != nil {
 		return err
 	}

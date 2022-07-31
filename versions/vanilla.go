@@ -4,9 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
-	"mineOS/config"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -93,7 +91,7 @@ func (d *vanillaDownload) waitFor() chan *vanillaCache {
 //
 // returned err value can be ignored and might only be used as debug or error message
 func (d *vanillaDownload) download() error {
-	var path = filepath.Join(config.Config.VersionsCacheFolder, string(Vanilla), d.vers.ID, "server.jar")
+	var path = cacheFolderFromStrTypeAndVrs(Vanilla, d.vers.ID)
 	var meta = struct {
 		Downloads struct {
 			Server struct {
@@ -127,7 +125,6 @@ func (d *vanillaDownload) download() error {
 	}(d.m, d)
 	err = DownloadFile(path, meta.Downloads.Server.Url, meta.Downloads.Server.Size, meta.Downloads.Server.Sha1, sha1.New)
 	if err == nil {
-		fmt.Println(3, err)
 		d.cache = &vanillaCache{
 			ID:   d.vers.ID,
 			Type: d.vers.Type,

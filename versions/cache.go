@@ -2,11 +2,15 @@ package versions
 
 import (
 	"encoding/json"
-	"mineOS/config"
+	"mineOS/globals"
 	"os"
 	"path/filepath"
 	"sync"
 )
+
+func cacheFolderFromStrTypeAndVrs(srvType ServerType, vrsID string) string {
+	return filepath.Join(globals.WarnConfigGet[string]("cache-folder"), string(Vanilla), vrsID, "server.jar")
+}
 
 var (
 	cache   = map[string]interface{}{}
@@ -15,7 +19,7 @@ var (
 
 func loadCache(cachePath string) error {
 	if cachePath == "" {
-		cachePath = config.Config.VersionsCacheFolder
+		cachePath = globals.WarnConfigGet[string]("cache-folder")
 	}
 	err := os.MkdirAll(cachePath, 0666)
 	if err != nil {
@@ -34,7 +38,7 @@ func loadCache(cachePath string) error {
 
 func saveCache(cachePath string) error {
 	if cachePath == "" {
-		cachePath = config.Config.VersionsCacheFolder
+		cachePath = globals.WarnConfigGet[string]("cache-folder")
 	}
 	f, err := os.Create(filepath.Join(cachePath, "versions.json"))
 	if err != nil {
