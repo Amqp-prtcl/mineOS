@@ -22,15 +22,15 @@ var (
 )
 
 func fromIdtoTempPath(id snowflakes.ID) string {
-	return filepath.Join(globals.WarnConfigGet[string]("download-folder"), "temp-"+id.String())
+	return filepath.Join(globals.DownloadFolder.WarnGet(), "temp-"+id.String())
 }
 
 func fromIdToPath(id snowflakes.ID) string {
-	return filepath.Join(globals.WarnConfigGet[string]("download-folder"), id.String())
+	return filepath.Join(globals.DownloadFolder.WarnGet(), id.String())
 }
 
 func fromIdtoPathInfo(id snowflakes.ID) string {
-	return filepath.Join(globals.WarnConfigGet[string]("download-folder"), id.String()+"-info.json")
+	return filepath.Join(globals.DownloadFolder.WarnGet(), id.String()+"-info.json")
 }
 
 type Info struct {
@@ -69,7 +69,7 @@ func GetFile(id snowflakes.ID) (io.ReadCloser, error) {
 func NewFile(name string, expiresIn time.Duration) (io.WriteCloser, snowflakes.ID, error) {
 	id := downloadNode.NewID()
 
-	err := os.MkdirAll(globals.WarnConfigGet[string]("download-folder"), 0666)
+	err := os.MkdirAll(globals.DownloadFolder.WarnGet(), 0666)
 	if err != nil {
 		fmt.Printf("Unable to create download directory: %s\n", err.Error())
 		return nil, "", err

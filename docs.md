@@ -118,6 +118,16 @@ example:
     "1.19"
 ]
 ```
+
+### **POST** `/api/versions/cache/clear`
+> clears all minecraft cached versions
+
+### **POST** `/api/versions/cache/clear/{srvType}`
+> like `/api/versions/cache/clear` but only clears cache for all minecraft versions for a specific server type
+
+
+### **POST** `/api/versions/cache/clear/{srvType}/{versionID}`
+> like `/api/versions/cache/clear/{srvType}` but only clears a specific cached version
 ---
 
 ## Servers:
@@ -264,6 +274,20 @@ this connection will send `state-update` and `log-update` and can only receive `
 - [X] option to zip and download backup
 - [X] add caching system for versions
 - [ ] add JSON config file for each server type (ex: manifest URL, etc)
-- [ ] add way of clearing cache (if possible per serverType)
+- [X] add way of clearing cache (if possible per serverType)
 - [ ] auto updates -> auto check and update with the press of a button (just need to replace .jar file) (only present for modded versions)
 - [ ] add Bukkit and Spigot support (buildTools.jar)
+- [ ] add way off modifying server properties
+- [X] add logs file for servers -- Automatically done by mojang
+- [ ] add way of getting server log files
+- [ ] remove double loading for rooms and users (close all and reload)
+- [X] create logger where you can add prefix to easily and accurately log errors nested in functions
+- [X] manage to create a good library for generic logging (as well for system logs as for minecraft logs) (must support multiple outputs and files, manage log files on close, different toggable level (such as INFO WARN ERR) toggable (for example with a WithoutPrefix() method) nestable prefixes (such as a nestPrefix() method that returns the same logger but with new prefix added so that caller can keep its prefix) maybe implementable through contexts)
+- [ ] refactor api paths in a package and add way of send errors in JSON through HTTP
+- [X] generally provide better way to handle slices and arrays (either a library with generic functions or a wrapper type with utils methods) -- golang already provides it since go1.18
+- [ ] add preload version cache
+
+# Bugs
+- with vanilla versions: old minecraft versions don't have a server link -> fail in download
+- There can be a race condition roomProfiles during save
+- Not Sure: in main() versionId regex might be too permissive

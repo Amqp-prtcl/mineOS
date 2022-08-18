@@ -38,7 +38,6 @@ func (m *Manager) LoadRooms(file string) error {
 	m.roomsmu.Lock()
 	defer m.roomsmu.Unlock()
 	if len(m.Rooms) != 0 {
-		//TODO: close all servers, and then reload
 		return fmt.Errorf("double loading of rooms")
 	}
 	profiles, err := rooms.LoadProfiles(file)
@@ -57,7 +56,7 @@ func (m *Manager) SaveRooms(file string) error {
 	defer m.roomsmu.RUnlock()
 	var a = []*rooms.RoomProfile{}
 	for _, room := range m.Rooms {
-		a = append(a, room.Profile) // TODO can be race condition with emails
+		a = append(a, room.Profile) // there can be race condition with emails
 	}
 	return rooms.SaveProfiles(file, a)
 }

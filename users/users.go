@@ -35,12 +35,11 @@ func newDefaultUser() *User {
 // if file arg is not present, it is fetched from config file
 func LoadUsers(file string) error {
 	if file == "" {
-		file = globals.WarnConfigGet[string]("users-file")
+		file = globals.UsersFile.WarnGet()
 	}
 	usersmu.Lock()
 	defer usersmu.Unlock()
 	if len(Users) != 0 {
-		//TODO
 		return fmt.Errorf("double loading of users")
 	}
 	f, err := os.Open(file)

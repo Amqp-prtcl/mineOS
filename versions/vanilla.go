@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"mineOS/globals"
 	"os"
 	"sync"
 	"time"
@@ -26,7 +27,6 @@ type vanillaManifest struct {
 
 func (m *vanillaManifest) GetType() ServerType { return Vanilla }
 
-//TODO sync mith cache
 func vanillaGenerateManifest(offline bool) (Manifest, error) {
 	var m = &vanillaManifest{}
 	var err error
@@ -91,7 +91,7 @@ func (d *vanillaDownload) waitFor() chan *vanillaCache {
 //
 // returned err value can be ignored and might only be used as debug or error message
 func (d *vanillaDownload) download() error {
-	var path = cacheFolderFromStrTypeAndVrs(Vanilla, d.vers.ID)
+	var path = getCacheVrsIDFile(Vanilla, d.vers.ID)
 	var meta = struct {
 		Downloads struct {
 			Server struct {
@@ -105,24 +105,7 @@ func (d *vanillaDownload) download() error {
 	if err != nil {
 		return err
 	}
-	defer func(m *vanillaManifest, d *vanillaDownload) {
-		go func(m *vanillaManifest, d *vanillaDownload) {
-			m.mu.Lock()
-			defer m.mu.Unlock()
-			for i, down := range m.cacheDown {
-				if down == d {
-					m.cacheDown[i] = nil
-					m.cacheDown[i] = m.cacheDown[len(m.cacheDown)-1]
-					m.cacheDown = m.cacheDown[:len(m.cacheDown)-1]
-					if d.cache != nil {
-						m.cacheVers = append(m.cacheVers, d.cache)
-					}
-					m.saveCache()
-					return
-				}
-			}
-		}(d.m, d)
-	}(d.m, d)
+
 	err = DownloadFile(path, meta.Downloads.Server.Url, meta.Downloads.Server.Size, meta.Downloads.Server.Sha1, sha1.New)
 	if err == nil {
 		d.cache = &vanillaCache{
@@ -133,11 +116,25 @@ func (d *vanillaDownload) download() error {
 		}
 	}
 	d.mu.Lock()
+	d.m.mu.Lock()
+	defer d.m.mu.Unlock()
 	d.done = true
 	for _, c := range d.cs {
 		c <- d.cache
 	}
 	d.mu.Unlock()
+	for i, down := range d.m.cacheDown {
+		if down == d {
+			d.m.cacheDown[i] = nil
+			d.m.cacheDown[i] = d.m.cacheDown[len(d.m.cacheDown)-1]
+			d.m.cacheDown = d.m.cacheDown[:len(d.m.cacheDown)-1]
+			if d.cache != nil {
+				d.m.cacheVers = append(d.m.cacheVers, d.cache)
+			}
+			d.m.saveCache()
+			return err
+		}
+	}
 	return err
 }
 
@@ -179,6 +176,10 @@ func (v vanillaCache) downloadServer(path string) error {
 	return nil
 }
 
+func (v vanillaCache) delete() error {
+	return os.RemoveAll(getCacheVrsIDFolder(Vanilla, v.ID))
+}
+
 // Locks mutexes
 func (m *vanillaManifest) loadCache() error {
 	m.mu.Lock()
@@ -218,13 +219,15 @@ func (m *vanillaManifest) saveCache() {
 }
 
 // It is caller's responsibility to lock Mutexes
-func (m *vanillaManifest) getCacheVersion(vrsID string) (*vanillaCache, bool) {
-	for _, v := range m.cacheVers {
+//
+// the index is not guaranteed to be true after mutex unlock
+func (m *vanillaManifest) getCacheVersion(vrsID string) (*vanillaCache, int, bool) {
+	for i, v := range m.cacheVers {
 		if v.ID == vrsID {
-			return v, true
+			return v, i, true
 		}
 	}
-	return nil, false
+	return nil, 0, false
 }
 
 // It is caller's responsibility to lock Mutexes
@@ -249,7 +252,7 @@ func (m *vanillaManifest) getVersion(vrsID string) (*vanillaVersion, bool) {
 
 func (m *vanillaManifest) DownloadServer(vrsID string, path string) error {
 	m.mu.Lock()
-	if cache, ok := m.getCacheVersion(vrsID); ok {
+	if cache, _, ok := m.getCacheVersion(vrsID); ok {
 		m.mu.Unlock()
 		return cache.downloadServer(path)
 	}
@@ -286,4 +289,36 @@ func (m *vanillaManifest) DownloadServer(vrsID string, path string) error {
 
 	m.mu.Unlock()
 	return ErrVerIdNotFound
+}
+
+func (m *vanillaManifest) ClearCacheAll() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var e = globals.MultiError{}
+	var cacheVers = []*vanillaCache{}
+	for _, cache := range m.cacheVers {
+		err := cache.delete()
+		if err != nil {
+			cacheVers = append(cacheVers, cache)
+			e.Append(err)
+		}
+	}
+	m.cacheVers = cacheVers
+	return e.ToErr()
+}
+
+func (m *vanillaManifest) ClearCache(vrsID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cache, i, ok := m.getCacheVersion(vrsID)
+	if !ok {
+		return nil
+	}
+	err := cache.delete()
+	if err == nil {
+		m.cacheVers[i] = m.cacheVers[len(m.cacheVers)-1]
+		m.cacheVers = m.cacheVers[:len(m.cacheVers)-1]
+	}
+	return err
 }

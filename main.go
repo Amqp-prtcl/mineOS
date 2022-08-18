@@ -57,29 +57,29 @@ func init() {
 		fmt.Printf("[ERR] Unable to load config file.\n")
 		panic(err)
 	}
-	snowflakes.SetEpoch(globals.WarnConfigGet[time.Time]("epoch"))
+	snowflakes.SetEpoch(globals.Time.WarnGet())
 
-	LoginFile = globals.WarnConfigGet[string]("assets-folder") + "login.html"
-	HomeFile = globals.WarnConfigGet[string]("assets-folder") + "home.html"
-	RoomsFile = globals.WarnConfigGet[string]("assets-folder") + "rooms.html"
-	RoomFile = globals.WarnConfigGet[string]("assets-folder") + "room.html"
-	NewRoomFile = globals.WarnConfigGet[string]("assets-folder") + "newRoom.html"
+	LoginFile = globals.AssetsFolder.WarnGet() + "login.html"
+	HomeFile = globals.AssetsFolder.WarnGet() + "home.html"
+	RoomsFile = globals.AssetsFolder.WarnGet() + "rooms.html"
+	RoomFile = globals.AssetsFolder.WarnGet() + "room.html"
+	NewRoomFile = globals.AssetsFolder.WarnGet() + "newRoom.html"
 
 	//protocol:
 	// create directories
-	info, err := os.Stat(globals.WarnConfigGet[string]("assets-folder"))
+	info, err := os.Stat(globals.AssetsFolder.WarnGet())
 	if err != nil || !info.IsDir() {
 		fmt.Printf("[ERR] Asset directory not found\n")
 		panic(err)
 	}
 
-	err = os.MkdirAll(globals.WarnConfigGet[string]("download-folder"), 0666)
+	err = os.MkdirAll(globals.DownloadFolder.WarnGet(), 0666)
 	if err != nil {
 		fmt.Printf("[ERR] Unable to create download directory\n")
 		panic(err)
 	}
 
-	err = os.MkdirAll(globals.WarnConfigGet[string]("servers-folder"), 0666)
+	err = os.MkdirAll(globals.ServerFolder.WarnGet(), 0666)
 	if err != nil {
 		fmt.Printf("[ERR] Unable to create servers directory\n")
 		panic(err)
@@ -112,7 +112,7 @@ func init() {
 	//fetching minecraft versions
 
 	fmt.Printf("fetching minecraft versions...\n")
-	err = versions.Setup("", globals.WarnConfigGet[bool]("offline-mode"))
+	err = versions.Setup("", globals.OfflineMode.WarnGet())
 	if err != nil {
 		fmt.Printf("[ERR] failed to fetch minecraft versions...\n")
 		panic(err)
@@ -133,7 +133,12 @@ func onAuth(r *http.Request, authType int, token jwt.Token) (*http.Cookie, inter
 }
 
 func main() {
-	const idRegex = `[0-9]+`
+	const (
+		idRegex      = `[0-9]+`
+		srvTypeRegex = `[A-Z]+`
+		vrsIDRegex   = `.+`
+	)
+
 	router := routes.NewRouter(onAuth)
 
 	//SITE
@@ -155,8 +160,11 @@ func main() {
 	//general
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/epoch/?$`, Auth, getEpochHandler))
 	//versions
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/versions/?$`, Auth, getsrvTypeListHandler))
-	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/versions/([A-Z]+)/?$`, Auth, getVersionIdListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/versions/?$`, Auth, getSrvTypeListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/versions/(`+srvTypeRegex+`)/?$`, Auth, getVersionIdListHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/api/versions/cache/clear/?$`, Auth, postClearCacheAll))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/api/versions/cache/clear/(`+srvTypeRegex+`)/?$`, Auth, postClearCacheServer))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/api/versions/cache/clear/(`+srvTypeRegex+`)/(`+vrsIDRegex+`)/?$`, Auth, postClearCacheVersion))
 	//servers
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/servers/?$`, Auth, getServerListHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/api/servers/(`+idRegex+`)/?$`, Auth, getServerInfoHandler))
@@ -164,8 +172,8 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/api/servers/new/?$`, Auth, postNewServerHandler))
 
 	//WEBSOCKETS
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/ws/?$`, Auth, serverListWebsocketHandler))
-	router.MustAddRoute(routes.MustNewRoute(routes.HttpMethodAny, `^/servers/(`+idRegex+`)/ws/?$`, Auth, serverWebsocketHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/ws/?$`, Auth, serverListWebsocketHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(`+idRegex+`)/ws/?$`, Auth, serverWebsocketHandler))
 
 	var closeChann = make(chan os.Signal, 1)
 	signal.Notify(closeChann, os.Interrupt)
@@ -183,7 +191,7 @@ func main() {
 		fmt.Printf("failed to save rooms: %v", err)
 	}
 	fmt.Printf("saving versions cache...\n")
-	err = versions.Save("")
+	err = versions.SaveCache("")
 	if err != nil {
 		fmt.Printf("failed to save versions cache: %v", err)
 	}
@@ -298,7 +306,7 @@ func assetsHandler(w http.ResponseWriter, r *http.Request, e interface{}, matche
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	http.ServeFile(w, r, filepath.Join(globals.WarnConfigGet[string]("assets-folder"), matches[0]))
+	http.ServeFile(w, r, filepath.Join(globals.AssetsFolder.WarnGet(), matches[0]))
 }
 
 func getDownload(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
@@ -358,7 +366,7 @@ func getEpochHandler(w http.ResponseWriter, r *http.Request, e interface{}, matc
 	}{Epoch: snowflakes.GetEpoch()})
 }
 
-func getsrvTypeListHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+func getSrvTypeListHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
 	json.NewEncoder(w).Encode(versions.GetServerTypes())
 }
 
@@ -369,6 +377,41 @@ func getVersionIdListHandler(w http.ResponseWriter, r *http.Request, e interface
 		return
 	}
 	json.NewEncoder(w).Encode(vrs)
+}
+
+func postClearCacheAll(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	if err := versions.ClearCacheAll(); err != nil {
+		fmt.Printf("error clearing cache: %v", err)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func postClearCacheServer(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	m, ok := versions.GetManifestByServerType(versions.ToServerType(matches[0]))
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	err := m.ClearCacheAll()
+	if err != nil {
+		fmt.Printf("error clearing cache for server type %v: %v", matches[0], err)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func postClearCacheVersion(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	m, ok := versions.GetManifestByServerType(versions.ToServerType(matches[0]))
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	err := m.ClearCache(matches[1])
+	if err != nil {
+		fmt.Printf("error clearing cache for server type %v and version %v: %v", matches[0], matches[1], err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func getServerListHandler(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
@@ -441,7 +484,7 @@ func postNewServerHandler(w http.ResponseWriter, r *http.Request, e interface{},
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	prof, err := rooms.GenerateRoom(info.Name, info.SrvType, info.VrsID) // TODO: sanitize upon error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
+	prof, err := rooms.GenerateRoom(info.Name, info.SrvType, info.VrsID)
 	if err != nil {
 		fmt.Println(2, err)
 		w.WriteHeader(http.StatusBadRequest)

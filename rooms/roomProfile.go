@@ -30,7 +30,7 @@ type RoomProfile struct {
 // if file arg if empty, it will be fetch from config file
 func LoadProfiles(file string) ([]*RoomProfile, error) {
 	if file == "" {
-		file = globals.WarnConfigGet[string]("profiles-file")
+		file = globals.ProfilesFiles.WarnGet()
 	}
 	var profiles = []*RoomProfile{}
 
@@ -49,7 +49,7 @@ func LoadProfiles(file string) ([]*RoomProfile, error) {
 
 func SaveProfiles(file string, l []*RoomProfile) error {
 	if file == "" {
-		file = globals.WarnConfigGet[string]("profiles-file")
+		file = globals.ProfilesFiles.WarnGet()
 	}
 	f, err := os.Create(file)
 	if err != nil {
@@ -72,7 +72,7 @@ func GenerateRoom(name string, serverType versions.ServerType, versionID string)
 	}
 	// 1. generate id and create directory
 	profile.ID = ServersNode.NewID()
-	var serverDir = filepath.Join(globals.WarnConfigGet[string]("server-folder"), profile.ID.String())
+	var serverDir = filepath.Join(globals.ServerFolder.WarnGet(), profile.ID.String())
 	err := os.MkdirAll(serverDir, 0666)
 	if err != nil {
 		return nil, err

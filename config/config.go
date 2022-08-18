@@ -17,6 +17,9 @@ type Config struct {
 // Default values are optionals (set to nil or use an empty map to skip it); LoadConfigFile will use the map to make up
 // for all value present in Default but not in file.
 //
+// Config package only accepts strings; booleans; float64; and structs or arrays containing them.
+// ints; units; and float32 are saved as float64
+//
 // Warning: LoadConfigFile only does shallow copies of values in default (take care about race conditions)
 func LoadConfigFile(filepath string, defaults map[string]interface{}) (*Config, error) {
 	var config = &Config{
@@ -90,22 +93,27 @@ func (c *Config) SaveFile() error {
 	return json.NewEncoder(f).Encode(c.Config)
 }
 
-func Get[T any](config *Config, key string) (T, bool) {
+type Getable interface {
+	~string | ~float64 | []interface{} | map[string]interface{}
+}
+
+func Get[T Getable](config *Config, key string) (T, bool) {
 	var ret T
 	v, ok := config.Get(key)
 	if !ok {
 		return ret, false
 	}
+
 	ret, ok = v.(T)
 	return ret, ok
 }
 
 // same as Get but gives more detail about what failed
-func GetErr[T any](config *Config, key string) (T, error) {
+func GetErr[T Getable](config *Config, key string) (T, error) {
 	var ret T
 	v, ok := config.Get(key)
 	if !ok {
-		return ret, fmt.Errorf("config file Get: key not found")
+		return ret, ErrKeyNotFound
 	}
 	ret, ok = v.(T)
 	if !ok {

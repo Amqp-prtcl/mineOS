@@ -1,5 +1,10 @@
 package versions
 
+import (
+	"mineOS/globals"
+	"strings"
+)
+
 type ServerType string
 
 const (
@@ -7,22 +12,28 @@ const (
 	//Paper   ServerType = "PAPERMC"
 )
 
-func GetServerTypes() []ServerType {
-	return []ServerType{Vanilla /*Paper*/}
+func ToServerType(str string) ServerType {
+	return ServerType(strings.ToUpper(str))
 }
 
-type Manifest interface {
-	GetVersionsList() []string
-	//GetVersion(vrsid string) (Version, bool)
+func GetServerTypes() []ServerType {
+	return []ServerType{Vanilla /*,Paper*/}
+}
 
-	// if vrsID is invalid, DownloadServer must respond with ErrVerIdNotFound
-	DownloadServer(vrsID string, path string) error
-	GetType() ServerType
+func ForEachSrvType(f func(srvType ServerType)) {
+	for _, v := range GetServerTypes() {
+		f(v)
+	}
+}
+
+func ForEachManifest(f func(m Manifest)) {
+	for _, v := range manifests {
+		f(v)
+	}
 }
 
 var (
-	vanillaM Manifest
-	//paperM   Manifest
+	manifests = []Manifest{}
 )
 
 func Setup(cachePath string, offline bool) error {
@@ -31,27 +42,40 @@ func Setup(cachePath string, offline bool) error {
 		return err
 	}
 
-	vanillaM, err = vanillaGenerateManifest(offline)
+	m, err := vanillaGenerateManifest(offline)
 	if err != nil {
 		return err
 	}
+	manifests = append(manifests, m)
 	//paperM, err = paperGenerateManifest(config.Config.OfflineMode)
 	return err
 }
 
-func Save(cachePath string) error {
+type Manifest interface {
+	GetVersionsList() []string
+
+	// if vrsID is invalid, DownloadServer must respond with ErrVerIdNotFound
+	DownloadServer(vrsID string, path string) error
+	GetType() ServerType
+
+	// if vrsID does not exists, ClearCache should return nil
+	ClearCache(vrsID string) error
+
+	// error should be of type globals.MultiError
+	ClearCacheAll() error
+}
+
+func SaveCache(cachePath string) error {
 	return saveCache(cachePath)
 }
 
 func GetManifestByServerType(srvType ServerType) (Manifest, bool) {
-	switch srvType {
-	case Vanilla:
-		return vanillaM, true
-	/*case Paper:
-	return paperM, true*/
-	default:
-		return nil, false
+	for _, m := range manifests {
+		if m.GetType() == srvType {
+			return m, true
+		}
 	}
+	return nil, false
 }
 
 func GetVersionIdsBuServerType(srvType ServerType) ([]string, bool) {
@@ -68,4 +92,16 @@ func DownloadServerByServerType(srvType ServerType, vrsID string, path string) e
 		return ErrSrvTypeNotFound
 	}
 	return m.DownloadServer(vrsID, path)
+}
+
+// ClearCache clears all versions it can for all versions
+// (if there is an error, it will be of type globals.MultiError)
+//
+// To clear only part of the cache see Manifest.ClearCache or Manifest.ClearCacheAll
+func ClearCacheAll() error {
+	var e = globals.MultiError{}
+	ForEachManifest(func(m Manifest) {
+		e.Append(m.ClearCacheAll())
+	})
+	return e.ToErr()
 }

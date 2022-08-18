@@ -8,8 +8,16 @@ import (
 	"sync"
 )
 
-func cacheFolderFromStrTypeAndVrs(srvType ServerType, vrsID string) string {
-	return filepath.Join(globals.WarnConfigGet[string]("cache-folder"), string(Vanilla), vrsID, "server.jar")
+func getCacheSrvTypeFolder(srvType ServerType) string {
+	return filepath.Join(globals.CacheFolder.WarnGet(), string(srvType))
+}
+
+func getCacheVrsIDFolder(srvType ServerType, vrsID string) string {
+	return filepath.Join(getCacheSrvTypeFolder(srvType), vrsID)
+}
+
+func getCacheVrsIDFile(srvType ServerType, vrsID string) string {
+	return filepath.Join(getCacheVrsIDFolder(srvType, vrsID), "server.jar")
 }
 
 var (
@@ -19,7 +27,7 @@ var (
 
 func loadCache(cachePath string) error {
 	if cachePath == "" {
-		cachePath = globals.WarnConfigGet[string]("cache-folder")
+		cachePath = globals.CacheFolder.WarnGet()
 	}
 	err := os.MkdirAll(cachePath, 0666)
 	if err != nil {
@@ -38,7 +46,7 @@ func loadCache(cachePath string) error {
 
 func saveCache(cachePath string) error {
 	if cachePath == "" {
-		cachePath = globals.WarnConfigGet[string]("cache-folder")
+		cachePath = globals.CacheFolder.WarnGet()
 	}
 	f, err := os.Create(filepath.Join(cachePath, "versions.json"))
 	if err != nil {
@@ -60,3 +68,9 @@ func cachePut(key string, val interface{}) {
 	defer cachemu.Unlock()
 	cache[key] = val
 }
+
+/*func cacheDelete(key string) {
+	cachemu.Lock()
+	defer cachemu.Unlock()
+	delete(cache, key)
+}*/
