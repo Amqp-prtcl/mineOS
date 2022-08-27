@@ -312,22 +312,22 @@ this connection will send `state-update` and `log-update` and can only receive `
 
 # TODO LIST
 
-- [V] add offline mode
-- [V] sanitize upon profile generation error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
-- [V] option to zip and download backup
-- [V] add caching system for versions
+- [v] add offline mode
+- [v] sanitize upon profile generation error (if generation fails on later stage (agreeing to EULA), dead folder will remain on disk -> Must remove it)
+- [v] option to zip and download backup
+- [v] add caching system for versions
 - [ ] add JSON config file for each server type (ex: manifest URL, etc)
-- [V] add way of clearing cache (if possible per serverType)
+- [v] add way of clearing cache (if possible per serverType)
 - [ ] auto updates -> auto check and update with the press of a button (just need to replace .jar file) (only present for modded versions)
 - [ ] add Bukkit and Spigot support (buildTools.jar)
 - [ ] add way off modifying server properties
-- [V] add logs file for servers -- Automatically done by mojang
+- [v] add logs file for servers -- Automatically done by mojang
 - [ ] add way of getting server log files
 - [ ] remove double loading for rooms and users (close all and reload)
-- [V] create logger where you can add prefix to easily and accurately log errors nested in functions
-- [V] manage to create a good library for generic logging (as well for system logs as for minecraft logs) (must support multiple outputs and files, manage log files on close, different toggable level (such as INFO WARN ERR) toggable (for example with a WithoutPrefix() method) nestable prefixes (such as a nestPrefix() method that returns the same logger but with new prefix added so that caller can keep its prefix) maybe implementable through contexts)
+- [v] create logger where you can add prefix to easily and accurately log errors nested in functions
+- [v] manage to create a good library for generic logging (as well for system logs as for minecraft logs) (must support multiple outputs and files, manage log files on close, different toggable level (such as INFO WARN ERR) toggable (for example with a WithoutPrefix() method) nestable prefixes (such as a nestPrefix() method that returns the same logger but with new prefix added so that caller can keep its prefix) maybe implementable through contexts)
 - [ ] refactor api paths in a package and add way of send errors in JSON through HTTP
-- [V] generally provide better way to handle slices and arrays (either a library with generic functions or a wrapper type with utils methods) -- golang already provides it since go1.18
+- [v] generally provide better way to handle slices and arrays (either a library with generic functions or a wrapper type with utils methods) -- golang already provides it since go1.18
 - [ ] add preload version cache
 
 # Bugs
