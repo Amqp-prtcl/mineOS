@@ -1,3 +1,5 @@
+github.com/Amqp-prtcl/config v0.0.0-20220831204205-b67663a1bbba h1:LWxvhpfEI7DKW03yz/q6sTRHDpQXGNBxroasylSAYFo=
+github.com/Amqp-prtcl/config v0.0.0-20220831204205-b67663a1bbba/go.mod h1:ZCBVKfPfIaCGWLv9NDpGUkwqXUHLcUF4AIpljaqluKY=
 github.com/Amqp-prtcl/jwt v0.0.0-20220323135600-daff92ed18aa h1:B6cjOZTY4wuDck+kKdjfMz1UPHIxwB0ASu1m13MOExs=
 github.com/Amqp-prtcl/jwt v0.0.0-20220323135600-daff92ed18aa/go.mod h1:eCO2mS/TUnOgHmUYFY/xjidyWk6qm+ZmX3BKNw/yYGk=
 github.com/Amqp-prtcl/routes v0.0.0-20220627151752-3e3d9679b7c9 h1:FLk1CKXCDC0Grhz1q3MbU8KBIJ4Ll9lDIx2mZHVRleE=

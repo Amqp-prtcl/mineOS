@@ -2,8 +2,9 @@ package globals
 
 import (
 	"fmt"
-	"mineOS/config"
 	"time"
+
+	"github.com/Amqp-prtcl/config"
 )
 
 const ConfigFile string = "config.json"
@@ -15,7 +16,7 @@ var (
 // set to nil for no defaults
 func Setup(defaults map[string]interface{}) error {
 	var err error
-	Config, err = config.LoadConfigFile(ConfigFile, defaults)
+	Config, err = config.LoadConfigFile(ConfigFile, config.Json, defaults)
 	if err != nil {
 		return err
 	}

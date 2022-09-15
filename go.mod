@@ -9,3 +9,5 @@ require (
 )
 
 require github.com/Amqp-prtcl/jwt v0.0.0-20220323135600-daff92ed18aa
+
+require github.com/Amqp-prtcl/config v0.0.0-20220831204205-b67663a1bbba
