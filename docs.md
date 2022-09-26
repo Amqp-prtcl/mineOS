@@ -338,6 +338,7 @@ this connection will send `state-update` and `log-update` and can only receive `
 - [v] generally provide better way to handle slices and arrays (either a library with generic functions or a wrapper type with utils methods) -- golang already provides it since go1.18
 - [ ] add preload version cache
 - [ ] add server properties to server profiles
+- [ ] add a in download system so to ease http request durations and provide a way to know what state the download is
 
 # Bugs
 

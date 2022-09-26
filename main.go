@@ -50,8 +50,7 @@ var upgrader = websocket.Upgrader{
 
 func init() {
 
-	var m map[string]interface{}
-	var err = globals.Setup(m)
+	var err = globals.Setup()
 	//err := config.LoadConfig("config.json")
 	if err != nil {
 		fmt.Printf("[ERR] Unable to load config file.\n")
@@ -59,11 +58,14 @@ func init() {
 	}
 	snowflakes.SetEpoch(globals.Time.WarnGet())
 
-	LoginFile = globals.AssetsFolder.WarnGet() + "login.html"
-	HomeFile = globals.AssetsFolder.WarnGet() + "home.html"
-	RoomsFile = globals.AssetsFolder.WarnGet() + "rooms.html"
-	RoomFile = globals.AssetsFolder.WarnGet() + "room.html"
-	NewRoomFile = globals.AssetsFolder.WarnGet() + "newRoom.html"
+	{
+		assets := globals.AssetsFolder.WarnGet()
+		LoginFile = assets + "login.html"
+		HomeFile = assets + "home.html"
+		RoomsFile = assets + "rooms.html"
+		RoomFile = assets + "room.html"
+		NewRoomFile = assets + "newRoom.html"
+	}
 
 	//protocol:
 	// create directories
@@ -289,9 +291,9 @@ func getServerProperties(w http.ResponseWriter, r *http.Request, e interface{}, 
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 	}
-	path := filepath.Join(room.Profile.JarPath, "server.properties")
-	f, err := os.Open(path)
+	f, err := os.Open(room.Profile.GetServerPropertiesFile())
 	if err != nil {
+		fmt.Println("srv prop: 1", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -315,8 +317,7 @@ func setServerProperties(w http.ResponseWriter, r *http.Request, e interface{}, 
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	path := filepath.Join(room.Profile.JarPath, "server.properties")
-	f, err := os.Create(path)
+	f, err := os.Create(room.Profile.GetServerPropertiesFile())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
