@@ -127,3 +127,7 @@ func GenerateRoom(name string, serverType versions.ServerType, versionID string)
 	ok = true
 	return profile, nil
 }
+
+func (p *RoomProfile) GetServerPropertiesFile() string {
+	return filepath.Join(filepath.Dir(p.JarPath), "server.properties")
+}
