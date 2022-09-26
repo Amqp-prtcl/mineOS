@@ -46,9 +46,17 @@ NOTE: Notice that at least for now the password is sent in plain text and MineOs
 
 > stops server (server must be running or Starting)
 
+### **GET** `/servers/{serverID}/server-properties`
+
+> returns the content of the server properties file
+
+### **POST** `/servers/{serverID}/server-properties`
+
+> edits the content of the server properties file
+
 ### **POST** `/servers/{serverID}/zip`
 
-> will create compress the server into a zip archive before returning the downloadID
+> will compress the server into a zip archive before returning the downloadID
 
 example:
 

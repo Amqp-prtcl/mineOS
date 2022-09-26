@@ -151,6 +151,8 @@ func main() {
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(`+idRegex+`)/?$`, Auth, getServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/start/?$`, Auth, startServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/stop/?$`, Auth, stopServerHandler))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/servers/(`+idRegex+`)/server-properties/?$`, Auth, getServerProperties))
+	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/server-properties/?$`, Auth, setServerProperties))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodPost, `^/servers/(`+idRegex+`)/zip/?$`, Auth, zipServerHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/assets/(.+)/?$`, Auth, assetsHandler))
 	router.MustAddRoute(routes.MustNewRoute(http.MethodGet, `^/download/(`+idRegex+`)/?$`, Auth, getDownload))
@@ -274,6 +276,57 @@ func stopServerHandler(w http.ResponseWriter, r *http.Request, e interface{}, ma
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func getServerProperties(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	path := filepath.Join(room.Profile.JarPath, "server.properties")
+	f, err := os.Open(path)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+	i, err := io.Copy(w, f)
+	if err != nil && i == 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+func setServerProperties(w http.ResponseWriter, r *http.Request, e interface{}, matches []string) {
+	id, err := snowflakes.ParseID(matches[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	room, ok := manager.M.GetRoombyID(id)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	if r.ContentLength == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	path := filepath.Join(room.Profile.JarPath, "server.properties")
+	f, err := os.Create(path)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+	defer r.Body.Close()
+	i, err := io.Copy(f, r.Body)
+	if err != nil && i == 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
